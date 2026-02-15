@@ -1,5 +1,7 @@
 # thesis
 
+## ■ URL
+https://main.d1453grp7m6b7i.amplifyapp.com/
 
 ## ■ 開発ガイド
 ### -- 1. 開発バージョン
