@@ -10,7 +10,6 @@ https://main.d1453grp7m6b7i.amplifyapp.com/
 
 ### -- 2. サーバー起動
 ```bash
-cd my-thesis-app
 npm run dev
 ```
 
@@ -19,28 +18,28 @@ npm run dev
 
 ```bash
 thesis/
-├── README.md                          // プロジェクトの概要と開発ガイド
-├── .gitignore                     // Gitで無視するファイルのリスト
-├── .next/                         // Next.jsのビルド出力ディレクトリ（自動生成）
-├── app/                           // Next.js App Routerのページとレイアウト
-│   ├── favicon.ico                // ブラウザのファビコン
-│   ├── globals.css                // グローバルCSSスタイル
-│   ├── layout.tsx                 // 全ページ共通のレイアウトコンポーネント
-│   └── page.tsx                   // トップページ (/ のルートページ)
-├── eslint.config.mjs              // ESLintの設定ファイル
-├── next-env.d.ts                  // Next.jsのTypeScript型定義
-├── next.config.ts                 // Next.jsの設定ファイル
-├── node_modules/                  // npmパッケージのインストールディレクトリ
-├── package-lock.json              // npmの依存関係ロックファイル
-├── package.json                   // npmの設定と依存関係定義
-├── postcss.config.mjs             // PostCSSの設定ファイル
-├── public/                        // 静的ファイル（画像、アイコンなど）
-│   ├── file.svg                   // 汎用ファイルアイコン
-│   ├── globe.svg                  // 地球アイコン
-│   ├── next.svg                   // Next.jsロゴ
-│   ├── vercel.svg                 // Vercelロゴ
-│   └── window.svg                 // ウィンドウアイコン
-└── tsconfig.json                  // TypeScriptの設定ファイル
+├── public/
+├── src/
+│   ├── app/
+│   │   ├── (auth)/             #【共通機能】
+│   │   │   ├── login/          # SCR-C01: ログイン画面
+│   │   │   └── register/       # SCR-C02: 新規登録画面
+│   │   ├── student/            # 【生徒用】
+│   │   │   ├── dashboard/      # SCR-C04: 生徒ホーム画面
+│   │   │   └── class/
+│   │   │       └── [classId]/  # SCR-P03: 受講画面
+│   │   ├── teacher/            # 【教員用】
+│   │   │   ├── dashboard/      # SCR-C03: 教員ホーム画面
+│   │   │   ├── editor/         # SCR-E01: 教材作成画面
+│   │   │   └── class/          # SCR-P01: ルーム管理画面
+│   │   │       └── [classId]/  # SCR-P02: 授業実施画面
+│   │   └── layout.tsx
+│   │   └── page.tsx            # Next.jsデフォルトホームページ
+│   │                           # (後でログイン画面へのリダイレクトに修正)
+│   └── components/
+│       └── ui/                 # ボタン、入力欄などの最小パーツ
+├── .gitignore
+└── README.md
 ```
 
 ### -- 4. ブランチ名規則  
