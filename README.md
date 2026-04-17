@@ -27,6 +27,10 @@ npx cdk deploy
 ```bash
 npm run dev
 ```
+デプロイ（確認用）
+```bash
+npm run build
+```
 
 ### -- 4. フォルダ構成
 主なファイルの構成を以下に示す
