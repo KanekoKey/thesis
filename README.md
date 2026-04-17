@@ -8,16 +8,36 @@ https://main.d1453grp7m6b7i.amplifyapp.com/
 * **Node.js：** `24.11.1`
 * **npm：** `11.6.2`
 
-### -- 2. サーバー起動
+### -- 2. バックエンド開発方法
+準備
+```bash
+cd backend
+npm install
+```
+初回セットアップ（※新しいAWS環境で初めてデプロイする場合のみ）
+```bash
+npx cdk bootstrap
+```
+デプロイ
+```bash
+npx cdk deploy
+```
+
+### -- 3. サーバー起動（フロントエンド）
 ```bash
 npm run dev
 ```
 
-### -- 3. フォルダ構成
+### -- 4. フォルダ構成
 主なファイルの構成を以下に示す
 
 ```bash
 thesis/
+├── backend/                    # 【バックエンド (AWS CDK)】
+│   ├── bin/
+│   ├── lib/                    # インフラ構成定義 (Stack)
+│   ├── lambda/                 # リアルタイム通信の処理 (TypeScript)
+│   └── cdk.json                # CDK設定ファイル
 ├── public/
 ├── src/
 │   ├── app/
@@ -42,7 +62,7 @@ thesis/
 └── README.md
 ```
 
-### -- 4. ブランチ名規則  
+### -- 5. ブランチ名規則  
 * **feat/** : 機能追加  
 * **fix/** : バグ修正  
 * **chore/** : 整備・改善  
