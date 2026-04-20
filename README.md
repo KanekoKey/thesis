@@ -60,8 +60,11 @@ thesis/
 │   │   └── layout.tsx
 │   │   └── page.tsx            # Next.jsデフォルトホームページ
 │   │                           # (後でログイン画面へのリダイレクトに修正)
-│   └── components/
-│       └── ui/                 # ボタン、入力欄などの最小パーツ
+│   ├── components/
+│   │   └── ui/                 # ボタン、入力欄などの最小パーツ
+│   │
+│   └── types/                  # 型定義
+│
 ├── .gitignore
 └── README.md
 ```
