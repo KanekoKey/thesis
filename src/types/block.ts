@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 
 export type BlockType = 'h1' | 'h2' | 'h3' | 'h4' | 'text'
 
-export type Block = {
+export type BlockData = {
   id: string;
   type: BlockType;
   content: string;
