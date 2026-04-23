@@ -2,15 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import type { BlockData } from '@/types/block';
+import Block from '@/components/blocks/Block';
 
 const WS_URL = 'wss://0ydmcdhzc8.execute-api.ap-northeast-1.amazonaws.com/prod/';
 
-const DUMMY_BLOCKS = [
+const DUMMY_BLOCKS: BlockData[] = [
   { id: 'b1', type: 'h1', content: '第1回：インターネットの仕組み' },
-  { id: 'b2', type: 'paragraph', content: '今日はWebサイトが表示される裏側について学びましょう。' },
+  { id: 'b2', type: 'text', content: '今日はWebサイトが表示される裏側について学びましょう。' },
   { id: 'b3', type: 'h2', content: '1. クライアントとサーバー' },
-  { id: 'b4', type: 'paragraph', content: '私たちが使っているスマホやPCを「クライアント」、データを持っているコンピュータを「サーバー」と呼びます。' },
-  { id: 'b5', type: 'paragraph', content: 'URLを入力すると、クライアントからサーバーへ「リクエスト」が送られます。' },
+  { id: 'b4', type: 'text', content: '私たちが使っているスマホやPCを「クライアント」、データを持っているコンピュータを「サーバー」と呼びます。' },
+  { id: 'b5', type: 'text', content: 'URLを入力すると、クライアントからサーバーへ「リクエスト」が送られます。' },
+  { id: 'b6', type: 'h3', content: 'Webブラウザの役割' },
+  { id: 'b7', type: 'h4', content: 'Google Chrome、Safari、Edgeなど' },
 ];
 
 export default function StudentClassroomPage() {
@@ -48,9 +52,9 @@ export default function StudentClassroomPage() {
       </div>
       <h1 className="text-2xl font-bold mb-4 text-red-500 animate-pulse">🔴 受講画面 (先生と同期中)</h1>
       <div className="max-w-4xl w-full bg-white p-12 rounded-2xl shadow-sm border text-center transition-all">
-        {activeBlock.type === 'h1' && <h1 className="text-5xl font-extrabold">{activeBlock.content}</h1>}
-        {activeBlock.type === 'h2' && <h2 className="text-4xl font-bold text-blue-600 border-b pb-4 inline-block">{activeBlock.content}</h2>}
-        {activeBlock.type === 'paragraph' && <p className="text-2xl text-gray-700">{activeBlock.content}</p>}
+        <Block type={activeBlock.type}>
+          {activeBlock.content}
+        </Block>
       </div>
     </div>
   );
