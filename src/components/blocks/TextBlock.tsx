@@ -15,7 +15,7 @@ const Heading4 = ({ children }: { children: ReactNode }) => (
   <h4 className="text-xl font-bold">{children}</h4>
 );
 const Text = ({ children }: { children: ReactNode }) => (
-  <p className="text-base font-bold">{children}</p>
+  <p className="text-base">{children}</p>
 );
 
 // --- テキスト専門のレンダラー ---
