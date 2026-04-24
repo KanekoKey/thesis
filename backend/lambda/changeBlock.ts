@@ -1,5 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { QueryCommand, DeleteCommand, DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { QueryCommand, DeleteCommand, DynamoDBDocumentClient, QueryCommandOutput } from "@aws-sdk/lib-dynamodb";
 import { ApiGatewayManagementApiClient, PostToConnectionCommand } from "@aws-sdk/client-apigatewaymanagementapi";
 import { APIGatewayProxyWebsocketEventV2 } from "aws-lambda";
 
@@ -20,15 +20,15 @@ export const handler = async (event: APIGatewayProxyWebsocketEventV2) => {
     return { statusCode: 400, body: "roomId is required" };
   }
 
-  const messageData = Buffer.from(JSON.stringify({ activeIndex }));
-  let lastEvaluatedKey: Record<string, any> | undefined = undefined;
+  const messageData = new TextEncoder().encode(JSON.stringify({ activeIndex }));
+  let lastEvaluatedKey: Record<string, unknown> | undefined = undefined;
   const staleConnections: string[] = [];
 
   // 1. Queryを使ったデータ取得（ページネーション対応）
   do {
-    const queryRes = await docClient.send(new QueryCommand({
+    const queryRes: QueryCommandOutput = await docClient.send(new QueryCommand({
       TableName: TABLE_NAME,
-      IndexName: INDEX_NAME, // ★ GSIを利用して高速検索
+      IndexName: INDEX_NAME,
       KeyConditionExpression: "roomId = :r",
       ExpressionAttributeValues: { ":r": roomId },
       ExclusiveStartKey: lastEvaluatedKey,
@@ -45,15 +45,18 @@ export const handler = async (event: APIGatewayProxyWebsocketEventV2) => {
           Data: messageData,
         }));
       } catch (error: unknown) {
-        // 1. AWS SDKのエラー形式として型を定義してあげる
-        const awsError = error as { $metadata?: { httpStatusCode?: number } };
-
-        // 2. その上でアクセスする
-        if (awsError.$metadata?.httpStatusCode === 410) {
-          console.log(`Stale connection detected: ${connectionId}`);
-          staleConnections.push(connectionId);
+        //  本物のErrorオブジェクトかどうかを検査する（型の絞り込み）
+        if (error instanceof Error) {
+          // エラー名で「切断済み(410)」を判定する
+          if (error.name === "GoneException") {
+            console.log(`Stale connection detected: ${connectionId}`);
+            staleConnections.push(connectionId);
+          } else {
+            console.error(`Failed to send message to ${connectionId}:`, error.message);
+          }
         } else {
-          console.error(`Failed to send message to ${connectionId}:`, error);
+          // Errorオブジェクト以外（文字列など）が飛んできた場合のフェイルセーフ
+          console.error(`Unknown error occurred with ${connectionId}:`, error);
         }
       }
     });
