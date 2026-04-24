@@ -75,10 +75,10 @@ export default function TeacherClassroomPage() {
   }
 
   // ② エラーが起きた時の画面
-  if (error) {
+  if (error || !materialBlocks || materialBlocks.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl font-bold text-red-500">{error}</div>
+        <div className="text-xl font-bold text-red-500">教材読み込みエラー</div>
       </div>
     );
   }

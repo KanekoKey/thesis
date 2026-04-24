@@ -68,7 +68,7 @@ export class BackendStack extends cdk.Stack {
     connectionsTable.grantReadData(changeBlockHandler);
 
     // ==========================================
-    //  API Gateway WebSocket API (既存のまま)
+    //  API Gateway WebSocket API
     // ==========================================
     const webSocketApi = new apigwv2.WebSocketApi(this, 'ThesisWebSocketApi', {
       // メッセージ内の "action" キーを見てルーティングを決定する設定
