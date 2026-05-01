@@ -42,28 +42,35 @@ thesis/
 │   ├── lib/                    # インフラ構成定義 (Stack)
 │   ├── lambda/                 # リアルタイム通信の処理 (TypeScript)
 │   └── cdk.json                # CDK設定ファイル
+│
 ├── public/
 ├── src/
 │   ├── app/
+│   │   ├── api/             　 # エンドポイント
+│   │   │
 │   │   ├── (auth)/             #【共通機能】
 │   │   │   ├── login/          # SCR-C01: ログイン画面
 │   │   │   └── register/       # SCR-C02: 新規登録画面
+│   │   |
 │   │   ├── student/            # 【生徒用】
 │   │   │   ├── dashboard/      # SCR-C04: 生徒ホーム画面
 │   │   │   └── class/
 │   │   │       └── [classId]/  # SCR-P03: 受講画面
+│   │   |
 │   │   ├── teacher/            # 【教員用】
 │   │   │   ├── dashboard/      # SCR-C03: 教員ホーム画面
 │   │   │   ├── editor/         # SCR-E01: 教材作成画面
 │   │   │   └── class/          # SCR-P01: ルーム管理画面
 │   │   │       └── [classId]/  # SCR-P02: 授業実施画面
+│   │   |
 │   │   └── layout.tsx
-│   │   └── page.tsx            # Next.jsデフォルトホームページ
-│   │                           # (後でログイン画面へのリダイレクトに修正)
+│   │   └── page.tsx
+│   │
 │   ├── components/
 │   │   └── blocks/             # 教材ブロックのコンポーネント
 │   │       └── Block.tsx       # 全てのブロックの窓口
 │   │
+│   ├── hooks/                  # Reactフック
 │   └── types/                  # 型定義
 │
 ├── .gitignore

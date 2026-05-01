@@ -2,14 +2,16 @@ import * as cdk from 'aws-cdk-lib/core';
 import { Construct } from 'constructs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda-nodejs';
-import * as apigwv2 from '@aws-cdk/aws-apigatewayv2-alpha';
-import { WebSocketLambdaIntegration } from '@aws-cdk/aws-apigatewayv2-integrations-alpha';
+import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
+import { WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 
 export class BackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // 1. DynamoDB: 接続IDと所属ルームを管理
+    // ==========================================
+    // dynamoDB:  WebSocket通信管理用のテーブル
+    // ==========================================
     const connectionsTable = new dynamodb.Table(this, 'ConnectionsTable', {
       partitionKey: { name: 'connectionId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -21,8 +23,24 @@ export class BackendStack extends cdk.Stack {
       partitionKey: { name: 'roomId', type: dynamodb.AttributeType.STRING },
       // projectionType: dynamodb.ProjectionType.ALL, // 必要に応じて（デフォルトはALL）
     });
+    
+    // ==========================================
+    // dynamoDB:  教材データ保存用のテーブル
+    // ==========================================
+    const materialsTable = new dynamodb.Table(this, 'MaterialsTable', {
+      partitionKey: { name: 'roomId', type: dynamodb.AttributeType.STRING }, // 部屋番号で検索できるようにする
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    // ターミナルに作成されたテーブル名を出力する
+    new cdk.CfnOutput(this, 'MaterialsTableName', {
+      value: materialsTable.tableName,
+      description: 'DynamoDB Table Name for Materials',
+    });
 
-    // 2. Lambda関数（Node.js + TypeScript）
+    // ==========================================
+    //  Lambda関数
+    // ==========================================
     const connectHandler = new lambda.NodejsFunction(this, 'ConnectHandler', {
       entry: 'lambda/connect.ts',
       environment: { TABLE_NAME: connectionsTable.tableName },
@@ -49,7 +67,9 @@ export class BackendStack extends cdk.Stack {
     connectionsTable.grantReadWriteData(joinRoomHandler);
     connectionsTable.grantReadData(changeBlockHandler);
 
-    // 3. API Gateway WebSocket API
+    // ==========================================
+    //  API Gateway WebSocket API
+    // ==========================================
     const webSocketApi = new apigwv2.WebSocketApi(this, 'ThesisWebSocketApi', {
       // メッセージ内の "action" キーを見てルーティングを決定する設定
       routeSelectionExpression: '$request.body.action',

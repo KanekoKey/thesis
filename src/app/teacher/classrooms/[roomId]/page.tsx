@@ -2,24 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import type { BlockData } from '@/types/block';
 import Block from '@/components/blocks/Block';
+import { useMaterials } from '@/hooks/useMaterials';
 
 const WS_URL = 'wss://0ydmcdhzc8.execute-api.ap-northeast-1.amazonaws.com/prod/';
-
-const DUMMY_BLOCKS: BlockData[] = [
-  { id: 'b1', type: 'h1', content: '第1回：インターネットの仕組み' },
-  { id: 'b2', type: 'text', content: '今日はWebサイトが表示される裏側について学びましょう。' },
-  { id: 'b3', type: 'h2', content: '1. クライアントとサーバー' },
-  { id: 'b4', type: 'text', content: '私たちが使っているスマホやPCを「クライアント」、データを持っているコンピュータを「サーバー」と呼びます。' },
-  { id: 'b5', type: 'text', content: 'URLを入力すると、クライアントからサーバーへ「リクエスト」が送られます。' },
-  { id: 'b6', type: 'h3', content: 'Webブラウザの役割' },
-  { id: 'b7', type: 'h4', content: 'Google Chrome、Safari、Edgeなど' },
-];
 
 export default function TeacherClassroomPage() {
   const params = useParams();
   const roomId = params.roomId as string;
+  // 教材を取得
+  const { blocks: materialBlocks, isLoading, error } = useMaterials(roomId);
+  
   const [activeIndex, setActiveIndex] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -42,10 +35,11 @@ export default function TeacherClassroomPage() {
   // 2. キーボード操作とデータ送信
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      let newIndex = activeIndex;
+      if (materialBlocks.length === 0) return;
 
+      let newIndex = activeIndex;
       if (e.key === 'ArrowDown') {
-        newIndex = Math.min(DUMMY_BLOCKS.length - 1, activeIndex + 1);
+        newIndex = Math.min(materialBlocks.length - 1, activeIndex + 1);
       } else if (e.key === 'ArrowUp') {
         newIndex = Math.max(0, activeIndex - 1);
       }
@@ -67,14 +61,34 @@ export default function TeacherClassroomPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeIndex, roomId]);
+  }, [activeIndex, roomId, materialBlocks]);
 
-  const activeBlock = DUMMY_BLOCKS[activeIndex];
+// --- 画面の描画 ---
 
+  // ① データ取得中の画面（ローディング）
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-xl font-bold text-gray-500 animate-pulse">教材を読み込み中...</div>
+      </div>
+    );
+  }
+
+  // ② エラーが起きた時の画面
+  if (error || !materialBlocks || materialBlocks.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-xl font-bold text-red-500">教材読み込みエラー</div>
+      </div>
+    );
+  }
+
+  // ③ データ取得成功時のメイン画面
+  const activeBlock = materialBlocks[activeIndex];
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
       <div className="absolute top-4 left-4 text-gray-500">
-        クラス: {roomId} | ブロック: {activeIndex + 1}/{DUMMY_BLOCKS.length}
+        クラス: {roomId} | ブロック: {activeIndex + 1}/{materialBlocks.length}
       </div>
       <h1 className="text-2xl font-bold mb-4">教員画面 (操作側)</h1>
       <div className="max-w-4xl w-full bg-white p-12 rounded-2xl shadow-sm border text-center min-h-[300px] flex items-center justify-center">
