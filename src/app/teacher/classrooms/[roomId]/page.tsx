@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Block from '@/components/blocks/Block';
 import { useMaterials } from '@/hooks/useMaterials';
+import type { SlideData } from '@/types/slide';
 
 // WebSocketの接続先（AWS API Gateway）
 const WS_URL = 'wss://0ydmcdhzc8.execute-api.ap-northeast-1.amazonaws.com/prod/';
@@ -13,8 +14,8 @@ export default function TeacherClassroomPage() {
   const roomId = params.roomId as string;
 
   // DynamoDBから教材データを取得
-  const { blocks: materialBlocks, isLoading, error } = useMaterials(roomId);
-  
+  const { slides: materialSlides, isLoading, error } = useMaterials(roomId);
+
   // 現在表示しているブロックのインデックス
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -24,7 +25,7 @@ export default function TeacherClassroomPage() {
   // --- WebSocket接続 ---
   useEffect(() => {
     const ws = new WebSocket(WS_URL);
-    
+
     ws.onopen = () => {
       ws.send(JSON.stringify({ action: 'joinRoom', roomId }));
     };
@@ -39,13 +40,13 @@ export default function TeacherClassroomPage() {
   // --- キーボード入力制御とWebSocket送信 ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (materialBlocks.length === 0) return;
+      if (!materialSlides || materialSlides.length === 0) return;
 
-      // 上下キーでインデックスを変更
+      // 左右キーでインデックスを変更
       let newIndex = activeIndex;
-      if (e.key === 'ArrowDown') {
-        newIndex = Math.min(materialBlocks.length - 1, activeIndex + 1);
-      } else if (e.key === 'ArrowUp') {
+      if (e.key === 'ArrowRight') {
+        newIndex = Math.min(materialSlides.length - 1, activeIndex + 1);
+      } else if (e.key === 'ArrowLeft') {
         newIndex = Math.max(0, activeIndex - 1);
       }
 
@@ -68,7 +69,7 @@ export default function TeacherClassroomPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeIndex, roomId, materialBlocks]);
+  }, [activeIndex, roomId, materialSlides]);
 
 
   // --- 画面の描画 ---
@@ -83,7 +84,7 @@ export default function TeacherClassroomPage() {
   }
 
   // エラーが起きた時の画面
-  if (error || !materialBlocks || materialBlocks.length === 0) {
+  if (error || !materialSlides || materialSlides.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-xl font-bold text-red-500">教材読み込みエラー</div>
@@ -92,19 +93,28 @@ export default function TeacherClassroomPage() {
   }
 
   // データ取得成功時のメイン画面
-  const activeBlock = materialBlocks[activeIndex];
+  const activeSlide = materialSlides[activeIndex];
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
       <div className="absolute top-4 left-4 text-gray-500">
-        クラス: {roomId} | ブロック: {activeIndex + 1}/{materialBlocks.length}
+        クラス: {roomId} | スライド: {activeIndex + 1}/{materialSlides.length}
       </div>
       <h1 className="text-2xl font-bold mb-4">教員画面 (操作側)</h1>
-      <div className="max-w-4xl w-full bg-white p-12 rounded-2xl shadow-sm border text-center min-h-[300px] flex items-center justify-center">
-        <Block type={activeBlock.type}>
-          {activeBlock.content}
-        </Block>
+
+      {/* スライド表示エリア */}
+      <div className="max-w-5xl w-full bg-white p-10 rounded-3xl shadow-lg border border-gray-100 min-h-[500px]">
+        <div className="flex flex-col gap-6">
+          {activeSlide.blocks.map((block) => (
+            <div key={block.id} className="w-full">
+              <Block type={block.type}>
+                {block.content}
+              </Block>
+            </div>
+          ))}
+        </div>
       </div>
-      <p className="mt-8 text-gray-400">キーボードの上下キーで操作</p>
+
+      <p className="mt-8 text-gray-400">キーボードの ← → キーでスライド切り替え</p>
     </div>
   );
 }
