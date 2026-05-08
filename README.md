@@ -25,6 +25,7 @@ npx cdk deploy
 
 ### -- 3. サーバー起動（フロントエンド）
 ```bash
+npm install
 npm run dev
 ```
 デプロイ（確認用）
@@ -54,14 +55,14 @@ thesis/
 │   │   |
 │   │   ├── student/            # 【生徒用】
 │   │   │   ├── dashboard/      # SCR-C04: 生徒ホーム画面
-│   │   │   └── class/
-│   │   │       └── [classId]/  # SCR-P03: 受講画面
+│   │   │   └── classrooms/
+│   │   │       └── [roomId]/   # SCR-P03: 受講画面
 │   │   |
 │   │   ├── teacher/            # 【教員用】
 │   │   │   ├── dashboard/      # SCR-C03: 教員ホーム画面
 │   │   │   ├── editor/         # SCR-E01: 教材作成画面
-│   │   │   └── class/          # SCR-P01: ルーム管理画面
-│   │   │       └── [classId]/  # SCR-P02: 授業実施画面
+│   │   │   └── classrooms/     # SCR-P01: ルーム管理画面
+│   │   │       └── [roomId]/   # SCR-P02: 授業実施画面
 │   │   |
 │   │   └── layout.tsx
 │   │   └── page.tsx

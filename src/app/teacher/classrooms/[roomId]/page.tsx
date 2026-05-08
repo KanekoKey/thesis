@@ -5,23 +5,27 @@ import { useParams } from 'next/navigation';
 import Block from '@/components/blocks/Block';
 import { useMaterials } from '@/hooks/useMaterials';
 
+// WebSocketの接続先（AWS API Gateway）
 const WS_URL = 'wss://0ydmcdhzc8.execute-api.ap-northeast-1.amazonaws.com/prod/';
 
 export default function TeacherClassroomPage() {
   const params = useParams();
   const roomId = params.roomId as string;
-  // 教材を取得
+
+  // DynamoDBから教材データを取得
   const { blocks: materialBlocks, isLoading, error } = useMaterials(roomId);
   
+  // 現在表示しているブロックのインデックス
   const [activeIndex, setActiveIndex] = useState(0);
+
+  // WebSocketインスタンスを保持
   const wsRef = useRef<WebSocket | null>(null);
 
-  // 1. ページを開いたときにWebSocketに接続
+  // --- WebSocket接続 ---
   useEffect(() => {
     const ws = new WebSocket(WS_URL);
     
     ws.onopen = () => {
-      console.log('AWS WebSocketに接続しました！');
       ws.send(JSON.stringify({ action: 'joinRoom', roomId }));
     };
 
@@ -32,11 +36,12 @@ export default function TeacherClassroomPage() {
     };
   }, [roomId]);
 
-  // 2. キーボード操作とデータ送信
+  // --- キーボード入力制御とWebSocket送信 ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (materialBlocks.length === 0) return;
 
+      // 上下キーでインデックスを変更
       let newIndex = activeIndex;
       if (e.key === 'ArrowDown') {
         newIndex = Math.min(materialBlocks.length - 1, activeIndex + 1);
@@ -44,9 +49,11 @@ export default function TeacherClassroomPage() {
         newIndex = Math.max(0, activeIndex - 1);
       }
 
+      // インデックスが変わったら状態を更新
       if (newIndex !== activeIndex) {
-        setActiveIndex(newIndex); // 自分の画面を更新
+        setActiveIndex(newIndex);
 
+        // WebSocket送信
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
           wsRef.current.send(
             JSON.stringify({
@@ -63,9 +70,10 @@ export default function TeacherClassroomPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeIndex, roomId, materialBlocks]);
 
-// --- 画面の描画 ---
 
-  // ① データ取得中の画面（ローディング）
+  // --- 画面の描画 ---
+
+  // データ取得中の画面（ローディング）
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -74,7 +82,7 @@ export default function TeacherClassroomPage() {
     );
   }
 
-  // ② エラーが起きた時の画面
+  // エラーが起きた時の画面
   if (error || !materialBlocks || materialBlocks.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -83,7 +91,7 @@ export default function TeacherClassroomPage() {
     );
   }
 
-  // ③ データ取得成功時のメイン画面
+  // データ取得成功時のメイン画面
   const activeBlock = materialBlocks[activeIndex];
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
