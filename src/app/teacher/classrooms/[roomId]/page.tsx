@@ -106,9 +106,7 @@ export default function TeacherClassroomPage() {
         <div className="flex flex-col gap-6">
           {activeSlide.blocks.map((block) => (
             <div key={block.id} className="w-full">
-              <Block type={block.type}>
-                {block.content}
-              </Block>
+              <Block block={block} />
             </div>
           ))}
         </div>
