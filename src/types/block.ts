@@ -1,17 +1,23 @@
-import { ReactNode } from 'react';
-
-export type BlockType = 'h1' | 'h2' | 'h3' | 'h4' | 'text'
-
-export type BlockData = {
+export type TextBlockData = {
   id: string;
-  type: BlockType;
-  content: string;
+  type: 'h1' | 'h2' | 'h3' | 'h4' | 'text';
+  parameters: {
+    content: string;
+  };
 };
 
-export type TextBlockProps = {
-  type: 'h1' | 'h2' | 'h3' | 'h4' | 'text';
-  children: ReactNode;
-};
+export type CounterBlockData = {
+  id: string;
+  type: 'counter';
+  parameters: {
+    initialCount: number;
+    step: number;
+    label: string;
+  };
+}
 
 // 全てのブロックの型を合体（ユニオン）
-export type BlockProps = TextBlockProps;
+export type BlockData = TextBlockData | CounterBlockData;
+
+// ブロックの種類だけを抜き取るユーティリティ型
+export type BlockType = BlockData['type'];
