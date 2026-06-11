@@ -103,7 +103,7 @@ export default function RollerCoasterBlock({
         const testP = Math.min(1.0, p);
         const testPos = getTrackPos(testP);
         const testPotential = mass * gravity * testPos.h;
-        
+
         if (totalEnergy < testPotential) {
             let low = prevP;
             let high = testP;
@@ -169,6 +169,12 @@ export default function RollerCoasterBlock({
                     {/* シミュレーションエリア */}
                     <div className="bg-sky-50 rounded-xl p-4 sm:p-8 border border-sky-100 w-full">
                         <div className="relative w-full aspect-[2/1]">
+
+                            {/* 設定値 */}
+                            <div className="absolute top-0 right-0 bg-white/70 backdrop-blur-sm border border-sky-100 text-gray-500 text-[10px] sm:text-xs px-2 py-1 rounded shadow-sm z-10 text-left pointer-events-none">
+                                <p>質量　　　： <span className="font-mono text-gray-700">{mass}</span> kg</p>
+                                <p>重力加速度： <span className="font-mono text-gray-700">{gravity}</span> m/s²</p>
+                            </div>
 
                             {/* コース描画 */}
                             <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
