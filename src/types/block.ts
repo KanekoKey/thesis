@@ -12,11 +12,12 @@ export type RollerCoasterBlockData = {
   id: string;
   type: 'roller-coaster';
   parameters: {
-    mass?: number;
-    gravity?: number;
-    initialHeight?: number;
-    trackShape?: 'drop' | 'camel-back';
-    controlMode?: 'manual' | 'time';
+    mass?: number;                      // 質量 [kg]
+    gravity?: number;                   // 重力加速度 [m/s²]
+    initialHeight?: number;             // スタートの高さ [m]
+    initialVelocity?: number;           // スタートの速度 [m/s]
+    trackShape?: 'drop' | 'camel-back' | 'loop';
+    // コース形状(drop: 下り坂, camel-back: 大小二つの山, loop: ループ)
   };
 };
 

@@ -12,10 +12,12 @@
     "@aws-sdk/client-dynamodb": "^3.1036.0",
     "@aws-sdk/lib-dynamodb": "^3.1036.0",
     "aws-cdk": "^2.1118.2",
+    "immer": "^11.1.8",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-rnd": "^10.5.3"
+    "react-rnd": "^10.5.3",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
