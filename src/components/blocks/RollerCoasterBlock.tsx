@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { RollerCoasterBlockData } from '@/types/block';
 
-// デフォルトパラメータの定義
+// --- RollerCoasterBlock｜型定義 ---
 export const defaultRollerCoasterParams: Required<RollerCoasterBlockData['parameters']> = {
     mass: 10,
     gravity: 9.8,
@@ -12,6 +12,7 @@ export const defaultRollerCoasterParams: Required<RollerCoasterBlockData['parame
     trackShape: 'drop',
 };
 
+// --- RollerCoasterBlock | コンポーネント ---
 export default function RollerCoasterBlock({
     mass = defaultRollerCoasterParams.mass,
     gravity = defaultRollerCoasterParams.gravity,
