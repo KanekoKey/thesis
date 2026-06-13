@@ -1,19 +1,20 @@
 'use client';
 
 import { useState } from 'react';
+import type { CounterBlockData } from '@/types/block';
 
 // --- CounterBlock｜型定義 ---
-export interface CounterBlockProps {
-  initialCount?: number;
-  step?: number;
-  label?: string;
-}
+export const defaultCounterParams: Required<CounterBlockData['parameters']> = {
+    initialCount: 0,
+    step: 1,
+    label: "",
+};
 
 export default function CounterBlock({
-  initialCount = 0,
-  step = 1,
-  label = ""
-}: CounterBlockProps) {
+  initialCount = defaultCounterParams.initialCount,
+  step = defaultCounterParams.step,
+  label = defaultCounterParams.label
+}: CounterBlockData['parameters']) {
   const [count, setCount] = useState(initialCount);
 
   // --- CounterBlock｜ロジック ---

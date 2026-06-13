@@ -1,29 +1,29 @@
 'use client';
 
 import { useState } from 'react';
+import type { RollerCoasterBlockData } from '@/types/block';
 
 // --- RollerCoasterBlock｜型定義 ---
-export interface RollerCoasterBlockProps {
-    mass?: number;                      // 質量 [kg]
-    gravity?: number;                   // 重力加速度 [m/s²]
-    initialHeight?: number;             // スタートの高さ [m]
-    initialVelocity?: number;           // スタートの速度 [m/s]
-    trackShape?: 'drop' | 'camel-back' | 'loop';
-    // コース形状(drop: 下り坂, camel-back: 大小二つの山, loop: ループ)
-}
+export const defaultRollerCoasterParams: Required<RollerCoasterBlockData['parameters']> = {
+    mass: 10,
+    gravity: 9.8,
+    initialHeight: 50,
+    initialVelocity: 0,
+    trackShape: 'drop',
+};
 
+// --- RollerCoasterBlock | コンポーネント ---
 export default function RollerCoasterBlock({
-    mass = 10,
-    gravity = 9.8,
-    initialHeight = 50,
-    initialVelocity = 0,
-    trackShape = 'drop',
-}: RollerCoasterBlockProps) {
+    mass = defaultRollerCoasterParams.mass,
+    gravity = defaultRollerCoasterParams.gravity,
+    initialHeight = defaultRollerCoasterParams.initialHeight,
+    initialVelocity = defaultRollerCoasterParams.initialVelocity,
+    trackShape = defaultRollerCoasterParams.trackShape,
+}: RollerCoasterBlockData['parameters']) {
 
     // --- RollerCoasterBlock｜状態管理 ---
     // コースターの現在位置 (0.0 = スタート, 1.0 = ゴール)
     const [positionX, setPositionX] = useState(0);
-
 
     // --- RollerCoasterBlock｜入力値のバリデーション ---
     if (initialHeight <= 0 || mass <= 0 || gravity < 0 || initialVelocity < 0) {
@@ -129,7 +129,6 @@ export default function RollerCoasterBlock({
     const potentialEnergy = mass * gravity * currentHeight;             // 位置エネルギー (U = mgh)
     const kineticEnergy = Math.max(0, totalEnergy - potentialEnergy);   // 運動エネルギー (K = E - U)
     const velocity = Math.sqrt((2 * kineticEnergy) / mass);             // 速度 (v = √(2K/m))
-
 
     // --- RollerCoasterBlock｜UI描画用データの準備 ---
     // SVGでコースの線を描画するための座標群を生成 (0〜1を100分割)
@@ -321,5 +320,4 @@ export default function RollerCoasterBlock({
             </div>
         </div>
     );
-
 }
