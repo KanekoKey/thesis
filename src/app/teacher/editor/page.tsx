@@ -3,22 +3,41 @@
 import { useState, useEffect } from 'react';
 import { Rnd } from 'react-rnd';
 
+import { useEditorStore } from '@/stores/useEditorStore';
+import type { BlockType } from '@/types/block';
+import { BLOCK_DEFAULTS } from '@/components/blocks/defaults';
+import Block from '@/components/blocks/Block';
+
 export default function EditorScreen() {
     // インスペクタ（右側の設定パネル）の折りたたみ状態を管理
     const [isInspectorOpen, setIsInspectorOpen] = useState(true);
     
-    // SSR時の window is not defined エラーを回避するためのマウント判定
+    // コンポーネントのマウント状態を管理
     const [isMounted, setIsMounted] = useState(false);
 
-useEffect(() => {
-        // 同期的なState更新による警告を回避するため、setTimeoutで非同期にマウント判定を行う
+    // Zustand Store から状態と関数を取得
+    const addBlock = useEditorStore((state) => state.addBlock);
+    const slides = useEditorStore((state) => state.slides);
+    const activeSlideId = useEditorStore((state) => state.activeSlideId);
+    const selectedBlockId = useEditorStore((state) => state.selectedBlockId);
+    const setSelectedBlockId = useEditorStore((state) => state.setSelectedBlockId);
+    const currentSlide = slides.find(s => s.id === activeSlideId);
+
+    // コンポーネントがクライアント側でマウントされた後に、isMountedをtrueにする
+    useEffect(() => {
         const timer = setTimeout(() => {
             setIsMounted(true);
         }, 0);
         
-        // クリーンアップ関数
         return () => clearTimeout(timer);
     }, []);
+
+    // ブロック追加のハンドラー関数
+    const handleAddBlock = (type: BlockType) => {
+        const defaultParams = BLOCK_DEFAULTS[type] || {};
+        addBlock(type, defaultParams);
+    };
+
     return (
         <div className="relative w-screen h-screen bg-gray-100 flex flex-col items-center justify-center font-sans overflow-hidden">
             
@@ -32,25 +51,42 @@ useEffect(() => {
             </header>
 
             {/* --- 中央：スライドキャンバス --- */}
-            {/* 常に16:9 (aspect-video) を保つ */}
             <div className="w-[85vw] max-w-[1024px] aspect-video bg-white shadow-sm border border-gray-300 relative mt-8 flex flex-col z-0">
                 <div className="p-8 flex-1 overflow-y-auto">
-                    <h2 className="text-2xl font-bold text-gray-800 border-b-2 border-gray-100 pb-2 mb-6">
-                        力学的エネルギーの保存
-                    </h2>
                     
                     {/* 選択中のブロックを想定したハイライト */}
-                    <div className="p-4 border-2 border-blue-500 rounded-lg bg-blue-50/30 relative group">
-                        <div className="absolute -top-3 -left-3 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-sm cursor-move">
-                            <span className="text-xs">✥</span>
-                        </div>
-                        <p className="text-gray-600">ここにジェットコースターのシミュレータが配置されます。</p>
+                    <div className="flex flex-col gap-2">
+                        {currentSlide?.blocks.map((block) => (
+                            <div 
+                                key={block.id} 
+                                className={`relative p-4 rounded-lg border-2 transition-colors cursor-pointer ${
+                                    selectedBlockId === block.id 
+                                        ? 'border-blue-500 bg-blue-50/30' 
+                                        : 'border-transparent hover:border-gray-200'
+                                }`}
+                                onClick={() => setSelectedBlockId(block.id)}
+                            >
+                                {selectedBlockId === block.id && (
+                                    <div className="absolute -top-3 -left-3 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-sm cursor-move">
+                                        <span className="text-xs">✥</span>
+                                    </div>
+                                )}
+                                
+                                <Block block={block} />
+                            </div>
+                        ))}
+
+                        {/* ブロックが1つもない時の案内 */}
+                        {currentSlide?.blocks.length === 0 && (
+                            <div className="py-12 border-2 border-dashed border-gray-300 rounded-lg text-center text-gray-400">
+                                パレットから要素を追加してください
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
 
             {/* --- 左側：コンポーネントパレット --- */}
-            {/* ブラウザでのマウント完了後に表示（SSRエラー回避） */}
             {isMounted && (
                 <Rnd
                     default={{ x: 24, y: 96, width: 256, height: 'auto' }}
@@ -69,15 +105,24 @@ useEffect(() => {
                         {/* パレットの中身 */}
                         <div className="p-3 flex flex-col gap-2 overflow-y-auto">
                             <div className="text-xs font-bold text-gray-400 mb-1">静的要素</div>
-                            <button className="p-2 border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 text-left text-sm text-gray-700 flex items-center gap-2 transition-colors">
+                            <button 
+                                onClick={() => handleAddBlock('text')}
+                                className="p-2 border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 text-left text-sm text-gray-700 flex items-center gap-2 transition-colors"
+                            >
                                 <span className="text-lg">📝</span> テキスト
-                            </button>
-                            <button className="p-2 border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 text-left text-sm text-gray-700 flex items-center gap-2 transition-colors">
-                                <span className="text-lg">∑</span> 数式 (TeX)
                             </button>
                             
                             <div className="text-xs font-bold text-gray-400 mt-2 mb-1">動的要素</div>
-                            <button className="p-2 border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 text-left text-sm text-gray-700 flex items-center gap-2 transition-colors">
+                            <button 
+                                onClick={() => handleAddBlock('counter')}
+                                className="p-2 border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 text-left text-sm text-gray-700 flex items-center gap-2 transition-colors"
+                            >
+                                <span className="text-lg">🔢</span> カウンター
+                            </button>
+                            <button 
+                                onClick={() => handleAddBlock('roller-coaster')}
+                                className="p-2 border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 text-left text-sm text-gray-700 flex items-center gap-2 transition-colors"
+                            >
                                 <span className="text-lg">🎢</span> シミュレータ
                             </button>
                         </div>
@@ -86,7 +131,6 @@ useEffect(() => {
             )}
 
             {/* --- 右側：インスペクタ（設定パネル） --- */}
-            {/* ブラウザでのマウント完了後に表示（window.innerWidth の利用） */}
             {isMounted && (
                 <Rnd
                     default={{ x: window.innerWidth - 320, y: 128, width: 288, height: 'auto' }}
@@ -111,7 +155,7 @@ useEffect(() => {
                             </button>
                         </div>
                         
-                        {/* フォームの中身（isInspectorOpen が true の時だけ表示） */}
+                        {/* フォームの中身 */}
                         {isInspectorOpen && (
                             <div className="p-4 flex flex-col gap-4">
                                 <div className="flex flex-col gap-1">
@@ -136,7 +180,6 @@ useEffect(() => {
                     </div>
                 </Rnd>
             )}
-
         </div>
     );
 }
