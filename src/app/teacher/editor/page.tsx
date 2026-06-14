@@ -2,27 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { Rnd } from 'react-rnd';
-import {
-    DndContext,
-    closestCenter,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    DragEndEvent
-} from '@dnd-kit/core';
-import {
-    SortableContext,
-    sortableKeyboardCoordinates,
-    verticalListSortingStrategy
-} from '@dnd-kit/sortable';
 
 import { useEditorStore } from '@/stores/useEditorStore';
 import type { BlockType } from '@/types/block';
 import { BLOCK_DEFAULTS } from '@/components/blocks/defaults';
 import Inspector from '@/components/inspectors/Inspector';
-import SortableBlockItem from '@/src/components/editor/SortableBlockItem';
 import SlideNavigator from '@/components/editor/SlideNavigator';
+import SlideCanvas from '@/components/editor/SlideCanvas';
 
 
 export default function EditorScreen() {
@@ -32,9 +18,6 @@ export default function EditorScreen() {
 
     // Zustand Store から状態と関数を取得
     const addBlock = useEditorStore((state) => state.addBlock);
-    const slides = useEditorStore((state) => state.slides);
-    const activeSlideId = useEditorStore((state) => state.activeSlideId);
-    const currentSlide = slides.find(s => s.id === activeSlideId);
 
     // コンポーネントがクライアント側でマウントされた後に、isMountedをtrueにする
     useEffect(() => {
@@ -51,22 +34,6 @@ export default function EditorScreen() {
         addBlock(type, defaultParams);
     };
 
-    // --- ドラッグ＆ドロップの設定 ---
-    const moveBlock = useEditorStore((state) => state.moveBlock);
-    const sensors = useSensors(
-        useSensor(PointerSensor),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
-    );
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        // active: 掴んだブロック, over: 落とした場所の下にあるブロック
-        if (over && active.id !== over.id) {
-            moveBlock(active.id as string, over.id as string);
-        }
-    };
-
     return (
         <div className="relative w-screen h-screen bg-gray-100 flex flex-col items-center justify-center font-sans overflow-hidden">
 
@@ -81,34 +48,7 @@ export default function EditorScreen() {
 
             <SlideNavigator />
 
-            {/* --- 中央：スライドキャンバス --- */}
-            <div className="w-[85vw] max-w-[1024px] aspect-video bg-white shadow-sm border border-gray-300 relative mt-8 flex flex-col z-0">
-                <div className="p-8 flex-1 overflow-y-auto">
-                    <DndContext 
-                        sensors={sensors} 
-                        collisionDetection={closestCenter} 
-                        onDragEnd={handleDragEnd}
-                    >
-                        <SortableContext 
-                            items={currentSlide?.blocks.map(b => b.id) || []} 
-                            strategy={verticalListSortingStrategy}
-                        >
-                            <div className="flex flex-col gap-2">
-                                {currentSlide?.blocks.map((block) => (
-                                    <SortableBlockItem key={block.id} block={block} />
-                                ))}
-
-                                {currentSlide?.blocks.length === 0 && (
-                                    <div className="py-12 border-2 border-dashed border-gray-300 rounded-lg text-center text-gray-400">
-                                        パレットから要素を追加してください
-                                    </div>
-                                )}
-                            </div>
-                        </SortableContext>
-                    </DndContext>
-                </div>
-            </div>
-            
+            <SlideCanvas />
 
             {/* --- 左側：コンポーネントパレット --- */}
             {isMounted && (
