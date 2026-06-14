@@ -4,12 +4,12 @@ import type { BlockType, BlockData } from '@/types/block';
 import type { SlideData } from '@/types/slide';
 
 interface EditorState {
-  // --- 状態 (State) ---
+  // 状態 (State)
   slides: SlideData[];
   activeSlideId: string | null;
   selectedBlockId: string | null;
 
-  // --- 操作 (Actions) ---
+  // 操作 (Actions)
   addBlock: <T extends BlockType>(
     type: T,
     initialParams: Extract<BlockData, { type: T }>['parameters']
@@ -17,9 +17,9 @@ interface EditorState {
   setSelectedBlockId: (id: string | null) => void;
   updateBlockParams: (id: string, newParams: Partial<BlockData['parameters']>) => void;
   removeBlock: (id: string) => void;
+  moveBlock: (activeId: string, overId: string) => void;
 }
 
-// --- Zustand ストアの作成 ---
 export const useEditorStore = create<EditorState>()(
   immer((set) => ({
     // 初期状態
@@ -32,7 +32,7 @@ export const useEditorStore = create<EditorState>()(
     activeSlideId: 's1',
     selectedBlockId: null,
 
-    // ブロックの追加
+    // --- ブロックの追加 ---
     addBlock: (type, initialParams) => set((state) => {
       const currentSlide = state.slides.find(s => s.id === state.activeSlideId);
       if (currentSlide) {
@@ -44,12 +44,12 @@ export const useEditorStore = create<EditorState>()(
       }
     }),
 
-    // 選択中ブロックの切り替え
+    // --- 選択中ブロックの切り替え ---
     setSelectedBlockId: (id) => set((state) => {
       state.selectedBlockId = id;
     }),
 
-    // パラメータの部分更新
+    // --- パラメータの部分更新 ---
     updateBlockParams: (id, newParams) => set((state) => {
       const currentSlide = state.slides.find(s => s.id === state.activeSlideId);
       if (!currentSlide) return;
@@ -60,7 +60,7 @@ export const useEditorStore = create<EditorState>()(
       }
     }),
 
-    // ブロックの削除
+    // --- ブロックの削除 ---
     removeBlock: (id) => set((state) => {
       const currentSlide = state.slides.find(s => s.id === state.activeSlideId);
       if (!currentSlide) return;
@@ -79,6 +79,20 @@ export const useEditorStore = create<EditorState>()(
       }
 
       currentSlide.blocks.splice(targetIndex, 1);
+    }),
+
+    // --- ブロックの移動 ---
+    moveBlock: (activeId, overId) => set((state) => {
+      const currentSlide = state.slides.find(s => s.id === state.activeSlideId);
+      if (!currentSlide) return;
+
+      const oldIndex = currentSlide.blocks.findIndex(b => b.id === activeId);
+      const newIndex = currentSlide.blocks.findIndex(b => b.id === overId);
+
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        const [movedBlock] = currentSlide.blocks.splice(oldIndex, 1);
+        currentSlide.blocks.splice(newIndex, 0, movedBlock);
+      }
     }),
   }))
 );

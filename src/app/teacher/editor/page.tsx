@@ -2,16 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import { Rnd } from 'react-rnd';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy
+} from '@dnd-kit/sortable';
 
 import { useEditorStore } from '@/stores/useEditorStore';
 import type { BlockType } from '@/types/block';
 import { BLOCK_DEFAULTS } from '@/components/blocks/defaults';
-import Block from '@/components/blocks/Block';
 import Inspector from '@/components/inspectors/Inspector';
+import SortableBlockItem from '@/components/SortableBlockItem';
 
 export default function EditorScreen() {
-    // インスペクタ（右側の設定パネル）の折りたたみ状態を管理
-    const [isInspectorOpen, setIsInspectorOpen] = useState(true);
 
     // コンポーネントのマウント状態を管理
     const [isMounted, setIsMounted] = useState(false);
@@ -33,10 +45,26 @@ export default function EditorScreen() {
         return () => clearTimeout(timer);
     }, []);
 
-    // ブロック追加のハンドラー関数
+    // --- ブロック追加のハンドラー ---
     const handleAddBlock = (type: BlockType) => {
         const defaultParams = BLOCK_DEFAULTS[type] || {};
         addBlock(type, defaultParams);
+    };
+
+    // --- ドラッグ＆ドロップの設定 ---
+    const moveBlock = useEditorStore((state) => state.moveBlock);
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        // active: 掴んだブロック, over: 落とした場所の下にあるブロック
+        if (over && active.id !== over.id) {
+            moveBlock(active.id as string, over.id as string);
+        }
     };
 
     return (
@@ -54,35 +82,28 @@ export default function EditorScreen() {
             {/* --- 中央：スライドキャンバス --- */}
             <div className="w-[85vw] max-w-[1024px] aspect-video bg-white shadow-sm border border-gray-300 relative mt-8 flex flex-col z-0">
                 <div className="p-8 flex-1 overflow-y-auto">
+                    <DndContext 
+                        sensors={sensors} 
+                        collisionDetection={closestCenter} 
+                        onDragEnd={handleDragEnd}
+                    >
+                        <SortableContext 
+                            items={currentSlide?.blocks.map(b => b.id) || []} 
+                            strategy={verticalListSortingStrategy}
+                        >
+                            <div className="flex flex-col gap-2">
+                                {currentSlide?.blocks.map((block) => (
+                                    <SortableBlockItem key={block.id} block={block} />
+                                ))}
 
-                    {/* 選択中のブロックを想定したハイライト */}
-                    <div className="flex flex-col gap-2">
-                        {currentSlide?.blocks.map((block) => (
-                            <div
-                                key={block.id}
-                                className={`relative p-4 rounded-lg border-2 transition-colors cursor-pointer ${selectedBlockId === block.id
-                                        ? 'border-blue-500 bg-blue-50/30'
-                                        : 'border-transparent hover:border-gray-200'
-                                    }`}
-                                onClick={() => setSelectedBlockId(block.id)}
-                            >
-                                {selectedBlockId === block.id && (
-                                    <div className="absolute -top-3 -left-3 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-sm cursor-move">
-                                        <span className="text-xs">✥</span>
+                                {currentSlide?.blocks.length === 0 && (
+                                    <div className="py-12 border-2 border-dashed border-gray-300 rounded-lg text-center text-gray-400">
+                                        パレットから要素を追加してください
                                     </div>
                                 )}
-
-                                <Block block={block} />
                             </div>
-                        ))}
-
-                        {/* ブロックが1つもない時の案内 */}
-                        {currentSlide?.blocks.length === 0 && (
-                            <div className="py-12 border-2 border-dashed border-gray-300 rounded-lg text-center text-gray-400">
-                                パレットから要素を追加してください
-                            </div>
-                        )}
-                    </div>
+                        </SortableContext>
+                    </DndContext>
                 </div>
             </div>
 
@@ -155,7 +176,7 @@ export default function EditorScreen() {
             )}
 
             {/* --- 右側：ブロック設定 --- */}
-           <Inspector />
+            <Inspector />
         </div>
     );
 }
