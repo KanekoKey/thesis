@@ -21,7 +21,9 @@ import { useEditorStore } from '@/stores/useEditorStore';
 import type { BlockType } from '@/types/block';
 import { BLOCK_DEFAULTS } from '@/components/blocks/defaults';
 import Inspector from '@/components/inspectors/Inspector';
-import SortableBlockItem from '@/components/SortableBlockItem';
+import SortableBlockItem from '@/src/components/editor/SortableBlockItem';
+import SlideNavigator from '@/components/editor/SlideNavigator';
+
 
 export default function EditorScreen() {
 
@@ -32,8 +34,6 @@ export default function EditorScreen() {
     const addBlock = useEditorStore((state) => state.addBlock);
     const slides = useEditorStore((state) => state.slides);
     const activeSlideId = useEditorStore((state) => state.activeSlideId);
-    const selectedBlockId = useEditorStore((state) => state.selectedBlockId);
-    const setSelectedBlockId = useEditorStore((state) => state.setSelectedBlockId);
     const currentSlide = slides.find(s => s.id === activeSlideId);
 
     // コンポーネントがクライアント側でマウントされた後に、isMountedをtrueにする
@@ -79,6 +79,8 @@ export default function EditorScreen() {
                 </div>
             </header>
 
+            <SlideNavigator />
+
             {/* --- 中央：スライドキャンバス --- */}
             <div className="w-[85vw] max-w-[1024px] aspect-video bg-white shadow-sm border border-gray-300 relative mt-8 flex flex-col z-0">
                 <div className="p-8 flex-1 overflow-y-auto">
@@ -106,6 +108,7 @@ export default function EditorScreen() {
                     </DndContext>
                 </div>
             </div>
+            
 
             {/* --- 左側：コンポーネントパレット --- */}
             {isMounted && (
