@@ -18,6 +18,9 @@ interface EditorState {
   updateBlockParams: (id: string, newParams: Partial<BlockData['parameters']>) => void;
   removeBlock: (id: string) => void;
   moveBlock: (activeId: string, overId: string) => void;
+  addSlide: () => void;
+  setActiveSlideId: (id: string) => void;
+  deleteSlide: (id: string) => void;
 }
 
 export const useEditorStore = create<EditorState>()(
@@ -93,6 +96,38 @@ export const useEditorStore = create<EditorState>()(
         const [movedBlock] = currentSlide.blocks.splice(oldIndex, 1);
         currentSlide.blocks.splice(newIndex, 0, movedBlock);
       }
+    }),
+
+    // --- スライドの追加 ---
+    addSlide: () => set((state) => {
+      const newSlideId = crypto.randomUUID();
+      state.slides.push({
+        id: newSlideId,
+        blocks: [],
+      });
+      state.activeSlideId = newSlideId;
+      state.selectedBlockId = null; 
+    }),
+
+    // --- スライドの切り替え ---
+    setActiveSlideId: (id) => set((state) => {
+      state.activeSlideId = id;
+      state.selectedBlockId = null;
+    }),
+
+    // --- スライドの削除 ---
+    deleteSlide: (id) => set((state) => {
+      if (state.slides.length <= 1) return;
+
+      const targetIndex = state.slides.findIndex(s => s.id === id);
+      if (targetIndex === -1) return;
+
+      if (state.activeSlideId === id) {
+        const newActiveIndex = targetIndex > 0 ? targetIndex - 1 : 1;
+        state.activeSlideId = state.slides[newActiveIndex].id;
+      }
+
+      state.slides.splice(targetIndex, 1);
     }),
   }))
 );
