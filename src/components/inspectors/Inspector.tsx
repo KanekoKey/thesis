@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Rnd } from 'react-rnd';
+import { Trash2 } from 'lucide-react';
 
 import { useEditorStore } from '@/stores/useEditorStore';
 import TextInspector from './TextBlockInspector';
@@ -18,6 +19,7 @@ export default function Inspector() {
     const selectedBlockId = useEditorStore((state) => state.selectedBlockId);
     const slides = useEditorStore((state) => state.slides);
     const activeSlideId = useEditorStore((state) => state.activeSlideId);
+    const removeBlock = useEditorStore((state) => state.removeBlock);
 
     // クライアント側でマウントされた後に、isMountedをtrueにする
     useEffect(() => {
@@ -51,11 +53,12 @@ export default function Inspector() {
 
     // パネルの中身（コンテンツ部分）を描画する関数
     const renderContent = () => {
+
         if (!selectedBlockId) {
             return <p className="text-sm text-gray-500 m-4 text-center">ブロックを選択してください</p>;
         }
         if (!block) {
-            return <p className="text-sm text-gray-500 m-4 text-center">ブロックが見つかりません</p>;
+            return <p className="text-sm text-gray-500 m-4 text-center">ブロックを選択してください</p>;
         }
 
         return (
@@ -67,6 +70,16 @@ export default function Inspector() {
                     </span>
                 </div>
                 {renderInspectorPanel(block)}
+                <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
+                    <button
+                        onClick={() => removeBlock(block.id)}
+                        className="group flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-100"
+                        aria-label="ブロックを削除"
+                    >
+                        <Trash2 className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" strokeWidth={2} />
+                        削除
+                    </button>
+                </div>
             </div>
         );
     };
