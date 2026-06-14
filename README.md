@@ -68,10 +68,11 @@ thesis/
 │   │   └── page.tsx
 │   │
 │   ├── components/
-│   │   └── blocks/             # 教材ブロックのコンポーネント
-│   │       └── Block.tsx       # 全てのブロックの窓口
+│   │   ├── blocks/             # 教材ブロックのコンポーネント
+│   │   └── inspectors/         # 教材作成画面のインスペクタ
 │   │
 │   ├── hooks/                  # Reactフック
+│   ├── stores/                 # Reactフック
 │   └── types/                  # 型定義
 │
 ├── .gitignore
