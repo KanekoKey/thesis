@@ -5,29 +5,32 @@ import type { RollerCoasterBlockData } from '@/types/block';
 
 // --- RollerCoasterBlock｜型定義 ---
 export const defaultRollerCoasterParams: Required<RollerCoasterBlockData['parameters']> = {
+    trackShape: 'drop',
     mass: 10,
     gravity: 9.8,
     initialHeight: 50,
+    peakHeight: 20,
     initialVelocity: 0,
-    trackShape: 'drop',
 };
 
 // --- RollerCoasterBlock | コンポーネント ---
 export default function RollerCoasterBlock({
+    trackShape = defaultRollerCoasterParams.trackShape,
     mass = defaultRollerCoasterParams.mass,
     gravity = defaultRollerCoasterParams.gravity,
     initialHeight = defaultRollerCoasterParams.initialHeight,
+    peakHeight = defaultRollerCoasterParams.peakHeight,
     initialVelocity = defaultRollerCoasterParams.initialVelocity,
-    trackShape = defaultRollerCoasterParams.trackShape,
 }: RollerCoasterBlockData['parameters']) {
     const isInvalidHeight = trackShape === 'loop' ? initialHeight < 0 : initialHeight <= 0;
+    const isInvalidPeakHeight = trackShape === 'loop' && peakHeight <= 0;
 
     // --- RollerCoasterBlock｜状態管理 ---
     // コースターの現在位置 (0.0 = スタート, 1.0 = ゴール)
     const [positionX, setPositionX] = useState(0);
 
     // --- RollerCoasterBlock｜入力値のバリデーション ---
-    if (isInvalidHeight || mass <= 0 || gravity < 0 || initialVelocity < 0) {
+    if (isInvalidHeight || isInvalidPeakHeight || mass <= 0 || gravity < 0 || initialVelocity < 0) {
         return (
             <div className="flex flex-col items-center justify-center p-8 bg-red-50 border-2 border-red-200 rounded-2xl shadow-sm gap-4 text-center w-full">
                 <span className="text-4xl">⚠️</span>
@@ -35,9 +38,10 @@ export default function RollerCoasterBlock({
                 <div className="text-sm text-red-600 text-left bg-white p-4 rounded-lg border border-red-100">
                     <p className="mb-2">計算または描画ができない数値が含まれています。以下を修正してください：</p>
                     <ul className="list-disc list-inside space-y-1">
-                        {isInvalidHeight && (<li><strong>高さ (initialHeight)</strong> は {trackShape === 'loop' ? '0' : '0 より大きい値'} にしてください。</li>)}
                         {mass <= 0 && <li><strong>質量 (mass)</strong> は 0 より大きい値にしてください。</li>}
                         {gravity < 0 && <li><strong>重力加速度 (gravity)</strong> は 0 以上の値にしてください。</li>}
+                        {isInvalidHeight && (<li><strong>高さ (initialHeight)</strong> は {trackShape === 'loop' ? '0' : '0 より大きい値'} にしてください。</li>)}
+                        {isInvalidPeakHeight && (<li><strong>{trackShape === 'loop' ? 'ループ' : '山'}の高さ</strong> は 0 より大きい値にしてください。</li>)}
                         {initialVelocity < 0 && <li><strong>スタートの速度 (initialVelocity)</strong> は 0 以上の値にしてください。</li>}
                     </ul>
                 </div>
@@ -74,7 +78,7 @@ export default function RollerCoasterBlock({
                 const lp = (p - 0.3) / 0.3;
                 const theta = -Math.PI / 2 + 2 * Math.PI * lp;
                 x = 0.4 + 0.1 * Math.cos(theta);
-                h = (0.2 + 0.2 * Math.sin(theta)) * baseHeight;
+                h = (0.5 + 0.5 * Math.sin(theta)) * peakHeight;
             } else if (p <= 0.8) {
                 // 第3段階：水平な一直線
                 const sp = (p - 0.6) / 0.2;
@@ -84,7 +88,7 @@ export default function RollerCoasterBlock({
                 // 第4段階：一直線の上り坂
                 const cp = (p - 0.8) / 0.2;
                 x = 0.7 + 0.3 * cp;
-                h = 0.6 * cp * baseHeight;
+                h = cp * peakHeight * 1.5;
             }
         }
         return { x, h };
@@ -134,8 +138,12 @@ export default function RollerCoasterBlock({
     const velocity = Math.sqrt((2 * kineticEnergy) / mass);             // 速度 (v = √(2K/m))
 
     // --- RollerCoasterBlock｜UI描画用データの準備 ---
+    // SVG描画用の高さの最大値を決定
+    const displayMaxH = trackShape === 'loop'
+        ? peakHeight * 2.5  // peakHeight / 0.4 = peakHeight * 2.5
+        : Math.max(initialHeight, 10) * 1.15;
     // SVGでコースの線を描画するための座標群を生成 (0〜1を100分割)
-    const getSvgY = (h: number) => 100 - (h / baseHeight) * 100;
+    const getSvgY = (h: number) => 100 - (h / displayMaxH) * 100;
 
     const trackPoints = Array.from({ length: 101 }).map((_, i) => {
         const p = i / 100;
@@ -203,39 +211,20 @@ export default function RollerCoasterBlock({
                                 </div>
                             )}
 
-                            {/* 山の高さマーカー (camel-back) */}
-                            {trackShape === 'camel-back' && (
-                                <div
-                                    className="absolute bottom-0 flex flex-col items-center"
-                                    style={{
-                                        left: '66.66%',
-                                        top: `${getSvgY(initialHeight / 3)}%`,
-                                        transform: 'translateX(-50%)'
-                                    }}
-                                >
-                                    <svg width="10" height="6" viewBox="0 0 10 6" className="text-gray-400 fill-current"><polygon points="5,0 0,6 10,6" /></svg>
-                                    <div className="flex-1 border-l-2 border-dashed border-gray-300 w-0 my-0.5"></div>
-                                    <div className="absolute top-1/2 left-3 -translate-y-1/2 text-xs font-bold text-gray-500 whitespace-nowrap bg-sky-50/80 px-1 rounded">
-                                        {(baseHeight / 3).toFixed(1)} m
-                                    </div>
-                                    <svg width="10" height="6" viewBox="0 0 10 6" className="text-gray-400 fill-current"><polygon points="5,6 0,0 10,0" /></svg>
-                                </div>
-                            )}
-
                             {/* ループの高さマーカー (loop) */}
                             {trackShape === 'loop' && (
                                 <div
                                     className="absolute bottom-0 flex flex-col items-center"
                                     style={{
                                         left: '40%',
-                                        top: `${getSvgY(initialHeight * 0.4)}%`,
+                                        top: `${getSvgY(peakHeight)}%`,
                                         transform: 'translateX(-50%)'
                                     }}
                                 >
                                     <svg width="10" height="6" viewBox="0 0 10 6" className="text-gray-400 fill-current"><polygon points="5,0 0,6 10,6" /></svg>
                                     <div className="flex-1 border-l-2 border-dashed border-gray-300 w-0 my-0.5"></div>
                                     <div className="absolute top-1/2 left-3 -translate-y-1/2 text-xs font-bold text-gray-500 whitespace-nowrap bg-sky-50/80 px-1 rounded">
-                                        {(initialHeight * 0.4).toFixed(1)} m
+                                        {peakHeight.toFixed(1)} m
                                     </div>
                                     <svg width="10" height="6" viewBox="0 0 10 6" className="text-gray-400 fill-current"><polygon points="5,6 0,0 10,0" /></svg>
                                 </div>

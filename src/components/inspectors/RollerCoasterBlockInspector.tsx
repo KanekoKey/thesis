@@ -78,6 +78,21 @@ export default function RollerCoasterBlockInspector({ blockId, params }: Props) 
                 />
             </div>
 
+            {/* ループの高さ (m) */}
+            {params.trackShape === 'loop' && (
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-gray-500">ループの高さ (m)</label>
+                    <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={params.peakHeight ?? 20}
+                        onChange={(e) => updateBlockParams(blockId, { peakHeight: Number(e.target.value) })}
+                    className="border border-gray-300 rounded p-1.5 text-sm bg-gray-50 outline-none focus:border-blue-500"
+                    />
+                </div>
+            )}
+
             {/* スタートの速度 (m/s) */}
             <div className="flex flex-col gap-1">
                 <label className="text-xs font-bold text-gray-500">スタートの速度 (m/s)</label>
