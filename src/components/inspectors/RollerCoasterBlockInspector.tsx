@@ -13,19 +13,20 @@ export default function RollerCoasterBlockInspector({ blockId, params }: Props) 
 
     return (
         <div className="flex flex-col gap-4">
-            {/* コース形状 */}
             <div className="flex flex-col gap-1">
                 <label className="text-xs font-bold text-gray-500">コース形状</label>
                 <select
                     value={params.trackShape}
                     onChange={(e) => {
                         const newShape = e.target.value as TrackShape;
-                        // ループの場合は初期高さを0に設定する
-                        if (newShape === 'loop') {
-                            updateBlockParams(blockId, { trackShape: newShape, initialHeight: 0 });
-                        } else {
-                            updateBlockParams(blockId, { trackShape: newShape });
-                        }
+                        updateBlockParams(blockId, { 
+                            trackShape: newShape,
+                            mass: 10,
+                            gravity: 9.8,
+                            initialHeight: newShape === 'loop' ? 0 : 50, // ループの時だけ0
+                            peakHeight: 20,
+                            initialVelocity: 0
+                        });
                     }}
                     className="border border-gray-300 rounded p-1.5 text-sm bg-gray-50 outline-none focus:border-blue-500"
                 >
