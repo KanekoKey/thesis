@@ -1,7 +1,12 @@
 import { BlockData } from '@/types/block';
-import CounterBlock from './CounterBlock';
-import RollerCoasterBlock from './RollerCoasterBlock';
+
 import TextBlock from './TextBlock';
+import H1Block from './H1Block';
+import H2Block from './H2Block';
+import H3Block from './H3Block';
+import H4Block from './H4Block';
+import RollerCoasterBlock from './RollerCoasterBlock';
+import CounterBlock from './CounterBlock';
 import ErrorBlock from './ErrorBlock';
 
 interface Props {
@@ -9,27 +14,16 @@ interface Props {
 }
 
 export default function Block({ block }: Props) {
-  
+
   switch (block.type) {
-    
-    // CounterBlock
-    case 'counter':
-      return <CounterBlock {...block.parameters} />;
+    case 'text': return <TextBlock {...block.parameters} />;
+    case 'h1': return <H1Block {...block.parameters} />;
+    case 'h2': return <H2Block {...block.parameters} />;
+    case 'h3': return <H3Block {...block.parameters} />;
+    case 'h4': return <H4Block {...block.parameters} />;
+    case 'counter': return <CounterBlock {...block.parameters} />;
+    case 'roller-coaster': return <RollerCoasterBlock {...block.parameters} />;
 
-    // RollerCoasterBlock
-    case 'roller-coaster':
-      return <RollerCoasterBlock {...block.parameters} />;
-
-    // TextBlock
-    case 'h1':
-    case 'h2':
-    case 'h3':
-    case 'h4':
-    case 'text':
-      return <TextBlock type={block.type} content={block.parameters.content} />;
-
-    // ErrorBlock（不明なタイプのブロック）
-    default:
-      return <ErrorBlock />;
+    default: return <ErrorBlock />;
   }
 }

@@ -1,12 +1,12 @@
-export type CounterBlockData = {
-  id: string;
-  type: 'counter';
-  parameters: {
-    initialCount: number;
-    step: number;
-    label: string;
-  };
-}
+// --- テキスト系ブロック ---
+export type TextParameters = {
+  content: string;
+};
+export type TextBlockData = { id: string; type: 'text'; parameters: TextParameters; };
+export type H1BlockData = { id: string; type: 'h1'; parameters: TextParameters; };
+export type H2BlockData = { id: string; type: 'h2'; parameters: TextParameters; };
+export type H3BlockData = { id: string; type: 'h3'; parameters: TextParameters; };
+export type H4BlockData = { id: string; type: 'h4'; parameters: TextParameters; };
 
 export type RollerCoasterBlockData = {
   id: string;
@@ -22,16 +22,25 @@ export type RollerCoasterBlockData = {
   };
 };
 
-export type TextBlockData = {
+export type CounterBlockData = {
   id: string;
-  type: 'h1' | 'h2' | 'h3' | 'h4' | 'text';
+  type: 'counter';
   parameters: {
-    content: string;
+    initialCount: number;
+    step: number;
+    label: string;
   };
-};
+}
 
 // 全てのブロックの型を合体（ユニオン）
-export type BlockData = TextBlockData | CounterBlockData | RollerCoasterBlockData;
+export type BlockData =
+  | TextBlockData
+  | H1BlockData
+  | H2BlockData
+  | H3BlockData
+  | H4BlockData
+  | RollerCoasterBlockData
+  | CounterBlockData;
 
 // ブロックの種類だけを抜き取るユーティリティ型
 export type BlockType = BlockData['type'];
