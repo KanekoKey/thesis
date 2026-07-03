@@ -4,7 +4,7 @@ import { useEditorStore } from '@/stores/useEditorStore';
 import SlideNavigator from '@/components/editor/SlideNavigator';
 import SlideCanvas from '@/components/editor/SlideCanvas';
 import BlockSelector from '@/components/editor/BlockSelector';
-import Inspector from '@/components/inspectors/Inspector';
+import BlockSettings from '@/src/components/editor/BlockSettings/BlockSettings';
 
 export default function EditorScreen() {
 
@@ -46,7 +46,7 @@ export default function EditorScreen() {
             <SlideNavigator />
             <SlideCanvas />
             <BlockSelector />
-            <Inspector />
+            <BlockSettings />
         </div>
     );
 }
