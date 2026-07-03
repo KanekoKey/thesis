@@ -5,13 +5,13 @@ import { Rnd } from 'react-rnd';
 import { Trash2 } from 'lucide-react';
 
 import { useEditorStore } from '@/stores/useEditorStore';
-import TextInspector from './TextBlockInspector';
-import CoasterInspector from './RollerCoasterBlockInspector';
+import TextBlockSettings from './TextBlockSettings';
+import RollerCoasterBlockSettings from './RollerCoasterBlockSettings';
 import type { BlockData } from '@/types/block';
 
-export default function Inspector() {
-    // インスペクタ自体の開閉状態をこのコンポーネント内で管理
-    const [isInspectorOpen, setIsInspectorOpen] = useState(true);
+export default function BlockSettings() {
+    // 設定パネル自体の開閉状態をこのコンポーネント内で管理
+    const [isSettingsOpen, setIsSettingsOpen] = useState(true);
     // SSR時の window is not defined エラー回避
     const [isMounted, setIsMounted] = useState(false);
 
@@ -35,17 +35,17 @@ export default function Inspector() {
     const currentSlide = slides.find(s => s.id === activeSlideId);
     const block = currentSlide?.blocks.find(b => b.id === selectedBlockId);
 
-    // typeに応じて適切なインスペクタパネルに振り分ける
-    const renderInspectorPanel = (block: BlockData) => {
+    // typeに応じて適切な設定パネルに振り分ける
+    const renderSettingsPanel = (block: BlockData) => {
         switch (block.type) {
             case 'text':
             case 'h1':
             case 'h2':
             case 'h3':
             case 'h4':
-                return <TextInspector blockId={block.id} params={block.parameters} />;
+                return <TextBlockSettings blockId={block.id} params={block.parameters} />;
             case 'roller-coaster':
-                return <CoasterInspector blockId={block.id} params={block.parameters} />;
+                return <RollerCoasterBlockSettings blockId={block.id} params={block.parameters} />;
             default:
                 return <div className="text-sm text-gray-500 text-center py-4">設定項目がありません</div>;
         }
@@ -69,7 +69,7 @@ export default function Inspector() {
                         {block.type}
                     </span>
                 </div>
-                {renderInspectorPanel(block)}
+                {renderSettingsPanel(block)}
                 <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
                     <button
                         onClick={() => removeBlock(block.id)}
@@ -89,27 +89,27 @@ export default function Inspector() {
             default={{ x: window.innerWidth - 320, y: 128, width: 288, height: 'auto' }}
             minWidth={240}
             bounds="parent"
-            dragHandleClassName="inspector-drag-handle"
-            enableResizing={isInspectorOpen ? { left: true, bottom: true, bottomLeft: true } : false}
+            dragHandleClassName="settings-drag-handle"
+            enableResizing={isSettingsOpen ? { left: true, bottom: true, bottomLeft: true } : false}
             className="z-20"
         >
             <div className="w-full bg-white/90 backdrop-blur-md shadow-2xl rounded-xl border border-gray-200 overflow-hidden flex flex-col transition-all duration-200">
                 {/* タイトルバー */}
                 <div
-                    className="inspector-drag-handle bg-blue-600 text-white px-3 py-2 text-xs font-bold flex justify-between items-center cursor-move select-none"
-                    onDoubleClick={() => setIsInspectorOpen(!isInspectorOpen)}
+                    className="settings-drag-handle bg-blue-600 text-white px-3 py-2 text-xs font-bold flex justify-between items-center cursor-move select-none"
+                    onDoubleClick={() => setIsSettingsOpen(!isSettingsOpen)}
                 >
                     <span>ブロック設定</span>
                     <button
-                        onClick={() => setIsInspectorOpen(!isInspectorOpen)}
+                        onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                         className="hover:text-blue-200 transition-colors px-2 py-0.5"
                     >
-                        {isInspectorOpen ? '－' : '▢'}
+                        {isSettingsOpen ? '－' : '▢'}
                     </button>
                 </div>
 
-                {/* インスペクタの中身 */}
-                {isInspectorOpen && (
+                {/* 設定パネルの中身 */}
+                {isSettingsOpen && (
                     <div className="p-4 flex flex-col gap-4">
                         {renderContent()}
                     </div>
