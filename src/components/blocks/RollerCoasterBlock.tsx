@@ -140,8 +140,8 @@ export default function RollerCoasterBlock({
     // --- RollerCoasterBlock｜UI描画用データの準備 ---
     // SVG描画用の高さの最大値を決定
     const displayMaxH = trackShape === 'loop'
-        ? peakHeight * 2.5  // peakHeight / 0.4 = peakHeight * 2.5
-        : Math.max(initialHeight, 10) * 1.15;
+        ? peakHeight * 2.5
+        : initialHeight * 1.15;
     // SVGでコースの線を描画するための座標群を生成 (0〜1を100分割)
     const getSvgY = (h: number) => 100 - (h / displayMaxH) * 100;
 
@@ -200,7 +200,7 @@ export default function RollerCoasterBlock({
                             {(trackShape === 'drop' || trackShape === 'camel-back') && (
                                 <div
                                     className="absolute bottom-0 flex flex-col items-center"
-                                    style={{ left: '-1%', top: '0%' }}
+                                    style={{ left: '-1%', top: `${getSvgY(startPos.h)}%` }}
                                 >
                                     <svg width="10" height="6" viewBox="0 0 10 6" className="text-gray-400 fill-current"><polygon points="5,0 0,6 10,6" /></svg>
                                     <div className="flex-1 border-l-2 border-dashed border-gray-300 w-0 my-0.5"></div>
