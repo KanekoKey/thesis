@@ -1,17 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useState, useEffect, use } from 'react';
 import Block from '@/components/blocks/Block';
 import { useMaterials } from '@/hooks/useMaterials';
-import type { SlideData } from '@/types/slide';
 
 // WebSocketの接続先（AWS API Gateway）
 const WS_URL = 'wss://0ydmcdhzc8.execute-api.ap-northeast-1.amazonaws.com/prod/';
 
-export default function StudentClassroomPage() {
-  const params = useParams();
-  const roomId = params.roomId as string;
+export default function ClassroomGuestPage({ params }: { params: Promise<{ roomId: string }> }) {
+  const { roomId } = use(params);
 
   // DynamoDBから教材データを取得
   const { slides: materialSlides, isLoading, error } = useMaterials(roomId);

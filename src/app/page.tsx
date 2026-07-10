@@ -28,18 +28,25 @@ export default function Home() {
         {/* アクションボタン（デモ画面へのリンク） */}
         <div className="flex flex-col sm:flex-row w-full max-w-md gap-4 mt-8">
           <Link
-            href="./teacher/classrooms/1"
+            href="./classroom/1/host"
             className="flex flex-1 h-14 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 font-bold text-white transition-all hover:bg-blue-700 hover:shadow-md active:scale-95"
             target="_blank"
           >
-            教員用画面を開く
+            教員用画面
           </Link>
           <Link
-            href="./student/classrooms/1"
+            href="./classroom/1/guest"
             className="flex flex-1 h-14 items-center justify-center gap-2 rounded-xl border-2 border-zinc-200 bg-white px-6 font-bold text-zinc-700 transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-95 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
             target="_blank"
           >
-            生徒用画面を開く
+            生徒用画面
+          </Link>
+          <Link
+            href="./editor/new"
+            className="flex flex-1 h-14 items-center justify-center gap-2 rounded-xl border-2 border-zinc-200 bg-white px-6 font-bold text-zinc-700 transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-95 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            target="_blank"
+          >
+            教材作成画面
           </Link>
         </div>
         {/* 概要テキスト部分 */}
