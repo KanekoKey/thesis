@@ -1,12 +1,14 @@
 'use client';
 
+import { use } from 'react';
 import { useEditorStore } from '@/stores/useEditorStore';
 import SlideNavigator from '@/components/editor/SlideNavigator';
 import SlideCanvas from '@/components/editor/SlideCanvas';
 import BlockSelector from '@/components/editor/BlockSelector';
 import BlockSettings from '@/src/components/editor/BlockSettings/BlockSettings';
 
-export default function EditorScreen() {
+export default function EditorPage({ params }: { params: Promise<{ deckId: string }> }) {
+    const { deckId } = use(params);
 
     // --- 保存のハンドラー ---
     const handleSave = () => {
