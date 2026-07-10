@@ -33,53 +33,7 @@ npm run dev
 npm run build
 ```
 
-### -- 4. フォルダ構成
-主なファイルの構成を以下に示す
-
-```bash
-thesis/
-├── backend/                    # 【バックエンド (AWS CDK)】
-│   ├── bin/
-│   ├── lib/                    # インフラ構成定義 (Stack)
-│   ├── lambda/                 # リアルタイム通信の処理 (TypeScript)
-│   └── cdk.json                # CDK設定ファイル
-│
-├── public/
-├── src/
-│   ├── app/
-│   │   ├── api/             　 # エンドポイント
-│   │   │
-│   │   ├── (auth)/             #【共通機能】
-│   │   │   ├── login/          # SCR-C01: ログイン画面
-│   │   │   └── register/       # SCR-C02: 新規登録画面
-│   │   |
-│   │   ├── student/            # 【生徒用】
-│   │   │   ├── dashboard/      # SCR-C04: 生徒ホーム画面
-│   │   │   └── classrooms/
-│   │   │       └── [roomId]/   # SCR-P03: 受講画面
-│   │   |
-│   │   ├── teacher/            # 【教員用】
-│   │   │   ├── dashboard/      # SCR-C03: 教員ホーム画面
-│   │   │   ├── editor/         # SCR-E01: 教材作成画面
-│   │   │   └── classrooms/     # SCR-P01: ルーム管理画面
-│   │   │       └── [roomId]/   # SCR-P02: 授業実施画面
-│   │   |
-│   │   └── layout.tsx
-│   │   └── page.tsx
-│   │
-│   ├── components/
-│   │   ├── blocks/             # 教材ブロックのコンポーネント
-│   │   └── inspectors/         # 教材作成画面のインスペクタ
-│   │
-│   ├── hooks/                  # Reactフック
-│   ├── stores/                 # Reactフック
-│   └── types/                  # 型定義
-│
-├── .gitignore
-└── README.md
-```
-
-### -- 5. ブランチ名規則  
+### -- 4. ブランチ名規則  
 * **feat/** : 機能追加  
 * **fix/** : バグ修正  
 * **chore/** : 整備・改善  
