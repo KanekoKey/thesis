@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
-import type { SlideData } from '@/types/slide';
+import type { MaterialItem } from '@/src/types/database';
 
 // キャッシュをオフにして常に最新のDB情報を取得
 export const dynamic = 'force-dynamic';
@@ -30,14 +30,13 @@ export async function GET(
     // データが見つからなかった場合の処理
     if (!response.Item) {
       console.log(`[API] クラスルーム ${roomId} のデータがDBにありません。`);
-      return NextResponse.json({ roomId: roomId, slides: [] });
+      const emptyItem: MaterialItem = { roomId, slides: [] };
+      return NextResponse.json(emptyItem);
     }
-  
+
   // 取得したデータをJSONとしてフロントエンドに返す
-  return NextResponse.json({
-    roomId: roomId,
-    slides: response.Item.slides,
-  });
+  const item = response.Item as MaterialItem;
+  return NextResponse.json(item);
 
   // エラーが発生した場合の処理
   } catch (error) {
@@ -58,7 +57,7 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const slides = body.slides as SlideData[];
+    const slides = body.slides;
 
     if (!Array.isArray(slides)) {
       return NextResponse.json(
@@ -68,17 +67,18 @@ export async function PUT(
     }
 
     // DynamoDBに教材データを保存（既存データは上書き）
+    const item: MaterialItem = {
+      roomId,
+      slides,
+      updatedAt: new Date().toISOString(),
+    };
     const command = new PutCommand({
       TableName: TABLE_NAME,
-      Item: {
-        roomId: roomId,
-        slides: slides,
-        updatedAt: new Date().toISOString(),
-      },
+      Item: item,
     });
     await docClient.send(command);
 
-    return NextResponse.json({ roomId: roomId, slides: slides });
+    return NextResponse.json(item);
 
   // エラーが発生した場合の処理
   } catch (error) {
