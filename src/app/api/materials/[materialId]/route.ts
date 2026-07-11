@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
-import type { MaterialItem } from '@/src/types/database';
+import type { MaterialItem } from '@/types/database';
 
 // キャッシュをオフにして常に最新のDB情報を取得
 export const dynamic = 'force-dynamic';
@@ -10,35 +10,29 @@ const client = new DynamoDBClient({ region: 'ap-northeast-1' });
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = 'BackendStack-MaterialsTableC00160E0-1QW0OHYL0QNT4';
 
-// GETリクエストを処理する関数
+// GETリクエストを処理する関数（教材データの取得）
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ roomId: string }> }
+  { params }: { params: Promise<{ materialId: string }> }
 ) {
-  const roomId = (await params).roomId;
+  const materialId = (await params).materialId;
 
   try {
-    // DynamoDBからクラスルームの教材データを取得
     const command = new GetCommand({
       TableName: TABLE_NAME,
-      Key: {
-        roomId: roomId 
-      }
+      Key: { roomId: materialId },
     });
     const response = await docClient.send(command);
 
-    // データが見つからなかった場合の処理
     if (!response.Item) {
-      console.log(`[API] クラスルーム ${roomId} のデータがDBにありません。`);
-      const emptyItem: MaterialItem = { roomId, slides: [] };
+      console.log(`[API] 教材 ${materialId} のデータがDBにありません。`);
+      const emptyItem: MaterialItem = { roomId: materialId, slides: [] };
       return NextResponse.json(emptyItem);
     }
 
-  // 取得したデータをJSONとしてフロントエンドに返す
-  const item = response.Item as MaterialItem;
-  return NextResponse.json(item);
+    const item = response.Item as MaterialItem;
+    return NextResponse.json(item);
 
-  // エラーが発生した場合の処理
   } catch (error) {
     console.error('[DynamoDB Error]', error);
     return NextResponse.json(
@@ -51,9 +45,9 @@ export async function GET(
 // PUTリクエストを処理する関数（教材データの保存）
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ roomId: string }> }
+  { params }: { params: Promise<{ materialId: string }> }
 ) {
-  const roomId = (await params).roomId;
+  const materialId = (await params).materialId;
 
   try {
     const body = await request.json();
@@ -66,9 +60,8 @@ export async function PUT(
       );
     }
 
-    // DynamoDBに教材データを保存（既存データは上書き）
     const item: MaterialItem = {
-      roomId,
+      roomId: materialId,
       slides,
       updatedAt: new Date().toISOString(),
     };
@@ -80,7 +73,6 @@ export async function PUT(
 
     return NextResponse.json(item);
 
-  // エラーが発生した場合の処理
   } catch (error) {
     console.error('[DynamoDB Error]', error);
     return NextResponse.json(

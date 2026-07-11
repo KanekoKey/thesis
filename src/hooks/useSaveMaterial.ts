@@ -20,7 +20,7 @@ export function useSaveMaterial(deckId: string) {
 
     setSaveStatus('saving');
     try {
-      const response = await fetch(`/api/classrooms/${deckId}`, {
+      const response = await fetch(`/api/materials/${deckId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slides }),
