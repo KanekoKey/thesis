@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import { useEditorStore } from '@/stores/useEditorStore';
 import SlideNavigator from '@/components/editor/SlideNavigator';
 import SlideCanvas from '@/components/editor/SlideCanvas';
@@ -9,24 +9,28 @@ import BlockSettings from '@/src/components/editor/BlockSettings/BlockSettings';
 
 export default function EditorPage({ params }: { params: Promise<{ deckId: string }> }) {
     const { deckId } = use(params);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
 
-    // --- 保存のハンドラー ---
-    const handleSave = () => {
+    // --- 保存のハンドラー（DBへ保存） ---
+    const handleSave = async () => {
         const slides = useEditorStore.getState().slides;
-        const jsonString = JSON.stringify({
-            version: '1.0.0',
-            updatedAt: new Date().toISOString(),
-            slides: slides
-        }, null, 2);
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `slide-${new Date().getTime()}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+
+        setIsSaving(true);
+        setSaveError(null);
+        try {
+            const response = await fetch(`/api/classrooms/${deckId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slides }),
+            });
+            if (!response.ok) throw new Error('保存に失敗しました');
+        } catch (err) {
+            console.error(err);
+            setSaveError('保存に失敗しました');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -34,13 +38,17 @@ export default function EditorPage({ params }: { params: Promise<{ deckId: strin
 
             {/* --- ヘッダー --- */}
             <header className="absolute top-0 w-full h-14 bg-white border-b border-gray-200 flex items-center px-6 justify-between z-10">
-                <div className="flex gap-2">
-                    <button 
+                <div className="flex items-center gap-2">
+                    <button
                         onClick={handleSave}
-                        className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 font-bold transition-colors active:scale-95"
+                        disabled={isSaving}
+                        className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 font-bold transition-colors active:scale-95 disabled:opacity-50 disabled:active:scale-100"
                     >
-                        保存
+                        {isSaving ? '保存中...' : '保存'}
                     </button>
+                    {saveError && (
+                        <span className="text-sm text-red-500">{saveError}</span>
+                    )}
                 </div>
             </header>
 
