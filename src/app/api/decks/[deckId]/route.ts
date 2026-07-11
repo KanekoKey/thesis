@@ -1,36 +1,34 @@
 import { NextResponse } from 'next/server';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
-import type { MaterialItem } from '@/types/database';
+import type { DeckItem } from '@/types/database';
 
-// キャッシュをオフにして常に最新のDB情報を取得
 export const dynamic = 'force-dynamic';
 
 const client = new DynamoDBClient({ region: 'ap-northeast-1' });
 const docClient = DynamoDBDocumentClient.from(client);
-const TABLE_NAME = 'BackendStack-MaterialsTableC00160E0-1QW0OHYL0QNT4';
+const TABLE_NAME = 'BackendStack-DecksTable1391E269-JGSFC4OUVRAF';
 
-// GETリクエストを処理する関数（教材データの取得）
+// GET: デッキデータの取得
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ materialId: string }> }
+  { params }: { params: Promise<{ deckId: string }> }
 ) {
-  const materialId = (await params).materialId;
+  const deckId = (await params).deckId;
 
   try {
     const command = new GetCommand({
       TableName: TABLE_NAME,
-      Key: { roomId: materialId },
+      Key: { roomId: deckId },
     });
     const response = await docClient.send(command);
 
     if (!response.Item) {
-      console.log(`[API] 教材 ${materialId} のデータがDBにありません。`);
-      const emptyItem: MaterialItem = { roomId: materialId, slides: [] };
+      const emptyItem: DeckItem = { roomId: deckId, slides: [] };
       return NextResponse.json(emptyItem);
     }
 
-    const item = response.Item as MaterialItem;
+    const item = response.Item as DeckItem;
     return NextResponse.json(item);
 
   } catch (error) {
@@ -42,12 +40,12 @@ export async function GET(
   }
 }
 
-// PUTリクエストを処理する関数（教材データの保存）
+// PUT: デッキデータの保存
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ materialId: string }> }
+  { params }: { params: Promise<{ deckId: string }> }
 ) {
-  const materialId = (await params).materialId;
+  const deckId = (await params).deckId;
 
   try {
     const body = await request.json();
@@ -60,8 +58,8 @@ export async function PUT(
       );
     }
 
-    const item: MaterialItem = {
-      roomId: materialId,
+    const item: DeckItem = {
+      roomId: deckId,
       slides,
       updatedAt: new Date().toISOString(),
     };

@@ -7,11 +7,11 @@ import SlideNavigator from '@/components/editor/SlideNavigator';
 import SlideCanvas from '@/components/editor/SlideCanvas';
 import BlockSelector from '@/components/editor/BlockSelector';
 import BlockSettings from '@/src/components/editor/BlockSettings/BlockSettings';
-import { useSaveMaterial } from '@/hooks/useSaveMaterial';
+import { useSaveDeck } from '@/hooks/useSaveDeck';
 
 export default function EditorPage({ params }: { params: Promise<{ deckId: string }> }) {
     const { deckId } = use(params);
-    const { saveStatus, lastSavedAt, handleSave } = useSaveMaterial(deckId);
+    const { saveStatus, lastSavedAt, handleSave } = useSaveDeck(deckId);
 
     return (
         <div className="relative w-screen h-screen bg-gray-100 flex flex-col items-center justify-center font-sans overflow-hidden">
