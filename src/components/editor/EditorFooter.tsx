@@ -1,7 +1,7 @@
 'use client';
 
 import { CheckCircle2, AlertCircle } from 'lucide-react';
-import type { SaveStatus } from '@/hooks/useSaveMaterial';
+import type { SaveStatus } from '@/hooks/useSaveDeck';
 
 interface EditorFooterProps {
     saveStatus: SaveStatus;

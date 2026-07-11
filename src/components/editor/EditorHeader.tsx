@@ -1,7 +1,7 @@
 'use client';
 
 import { LayoutPanelTop, Loader2, Save } from 'lucide-react';
-import type { SaveStatus } from '@/hooks/useSaveMaterial';
+import type { SaveStatus } from '@/hooks/useSaveDeck';
 
 interface EditorHeaderProps {
     deckId: string;

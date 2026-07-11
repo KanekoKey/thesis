@@ -25,17 +25,16 @@ export class BackendStack extends cdk.Stack {
     });
     
     // ==========================================
-    // dynamoDB:  教材データ保存用のテーブル
+    // dynamoDB:  デッキデータ保存用のテーブル
     // ==========================================
-    const materialsTable = new dynamodb.Table(this, 'MaterialsTable', {
-      partitionKey: { name: 'roomId', type: dynamodb.AttributeType.STRING }, // 部屋番号で検索できるようにする
+    const decksTable = new dynamodb.Table(this, 'DecksTable', {
+      partitionKey: { name: 'roomId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
-    // ターミナルに作成されたテーブル名を出力する
-    new cdk.CfnOutput(this, 'MaterialsTableName', {
-      value: materialsTable.tableName,
-      description: 'DynamoDB Table Name for Materials',
+    new cdk.CfnOutput(this, 'DecksTableName', {
+      value: decksTable.tableName,
+      description: 'DynamoDB Table Name for Decks',
     });
 
     // ==========================================
