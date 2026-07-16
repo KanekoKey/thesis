@@ -1,7 +1,7 @@
 import type { TextParameters } from '@/types/block';
 
 export const defaultH2Params: Required<TextParameters> = {
-    content: '見出し2',
+    content: '',
 };
 
 export default function H2Block({ content = defaultH2Params.content }: TextParameters) {

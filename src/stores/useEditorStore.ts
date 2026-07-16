@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { BlockType, BlockData } from '@/types/block';
 import type { SlideData } from '@/types/slide';
+import { findBlockById, findParentList } from '@/lib/blockTree';
 
 interface EditorState {
   // 状態 (State)
@@ -10,6 +11,8 @@ interface EditorState {
   selectedBlockId: string | null;
 
   // 操作 (Actions)
+  // 選択中のブロックの直後(列の中を選択していればその列)に追加する。
+  // 何も選択していなければスライド末尾に追加する。
   addBlock: <T extends BlockType>(
     type: T,
     initialParams: Extract<BlockData, { type: T }>['parameters']
@@ -39,13 +42,37 @@ export const useEditorStore = create<EditorState>()(
     // --- ブロックの追加 ---
     addBlock: (type, initialParams) => set((state) => {
       const currentSlide = state.slides.find(s => s.id === state.activeSlideId);
-      if (currentSlide) {
-        currentSlide.blocks.push({
-          id: crypto.randomUUID(),
-          type,
-          parameters: initialParams,
-        } as BlockData);
+      if (!currentSlide) return;
+
+      const newBlock = {
+        id: crypto.randomUUID(),
+        type,
+        parameters: initialParams,
+      } as BlockData;
+
+      // 2列ブロックは、左右の列にそれぞれ空のテキストブロックを入れた状態で追加する
+      // (デフォルト値をそのまま使うと複数の2列ブロックが列の配列を共有してしまうため、都度生成する)
+      let selectAfterInsert = newBlock.id;
+      if (newBlock.type === 'two-column') {
+        const leftBlock: BlockData = { id: crypto.randomUUID(), type: 'text', parameters: { content: '' } };
+        const rightBlock: BlockData = { id: crypto.randomUUID(), type: 'text', parameters: { content: '' } };
+        newBlock.parameters = { ratio: 0.5, columns: [[leftBlock], [rightBlock]] };
+        selectAfterInsert = leftBlock.id;
       }
+
+      // 選択中のブロックがあれば、その直後(同じ階層)に挿入する
+      const list = state.selectedBlockId
+        ? findParentList(currentSlide.blocks, state.selectedBlockId)
+        : undefined;
+
+      if (list) {
+        const index = list.findIndex(b => b.id === state.selectedBlockId);
+        list.splice(index + 1, 0, newBlock);
+      } else {
+        currentSlide.blocks.push(newBlock);
+      }
+
+      state.selectedBlockId = selectAfterInsert;
     }),
 
     // --- 選択中ブロックの切り替え ---
@@ -58,7 +85,7 @@ export const useEditorStore = create<EditorState>()(
       const currentSlide = state.slides.find(s => s.id === state.activeSlideId);
       if (!currentSlide) return;
 
-      const targetBlock = currentSlide.blocks.find(b => b.id === id);
+      const targetBlock = findBlockById(currentSlide.blocks, id);
       if (targetBlock) {
         targetBlock.parameters = { ...targetBlock.parameters, ...newParams };
       }
@@ -69,20 +96,23 @@ export const useEditorStore = create<EditorState>()(
       const currentSlide = state.slides.find(s => s.id === state.activeSlideId);
       if (!currentSlide) return;
 
-      const targetIndex = currentSlide.blocks.findIndex(b => b.id === id);
+      const list = findParentList(currentSlide.blocks, id);
+      if (!list) return;
+
+      const targetIndex = list.findIndex(b => b.id === id);
       if (targetIndex === -1) return;
 
       if (state.selectedBlockId === id) {
         if (targetIndex > 0) {
-          state.selectedBlockId = currentSlide.blocks[targetIndex - 1].id;
-        } else if (currentSlide.blocks.length > 1) {
-          state.selectedBlockId = currentSlide.blocks[targetIndex + 1].id;
+          state.selectedBlockId = list[targetIndex - 1].id;
+        } else if (list.length > 1) {
+          state.selectedBlockId = list[targetIndex + 1].id;
         } else {
           state.selectedBlockId = null;
         }
       }
 
-      currentSlide.blocks.splice(targetIndex, 1);
+      list.splice(targetIndex, 1);
     }),
 
     // --- ブロックの移動 ---
@@ -90,12 +120,15 @@ export const useEditorStore = create<EditorState>()(
       const currentSlide = state.slides.find(s => s.id === state.activeSlideId);
       if (!currentSlide) return;
 
-      const oldIndex = currentSlide.blocks.findIndex(b => b.id === activeId);
-      const newIndex = currentSlide.blocks.findIndex(b => b.id === overId);
+      const list = findParentList(currentSlide.blocks, activeId);
+      if (!list) return;
+
+      const oldIndex = list.findIndex(b => b.id === activeId);
+      const newIndex = list.findIndex(b => b.id === overId);
 
       if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-        const [movedBlock] = currentSlide.blocks.splice(oldIndex, 1);
-        currentSlide.blocks.splice(newIndex, 0, movedBlock);
+        const [movedBlock] = list.splice(oldIndex, 1);
+        list.splice(newIndex, 0, movedBlock);
       }
     }),
 

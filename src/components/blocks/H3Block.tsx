@@ -1,7 +1,7 @@
 import type { TextParameters } from '@/types/block';
 
 export const defaultH3Params: Required<TextParameters> = {
-    content: '見出し3',
+    content: '',
 };
 
 export default function H3Block({ content = defaultH3Params.content }: TextParameters) {

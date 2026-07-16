@@ -167,21 +167,23 @@ export default function RollerCoasterBlock({
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
     // --- RollerCoasterBlock｜UI ---
+    // 2列ブロックの列内など、画面幅は広くても実際の描画幅が狭い場所に置かれることがあるため、
+    // ビューポート基準のブレークポイント(sm:/lg:)ではなく、自身の描画幅を基準にするコンテナクエリ(@container)を使う
     return (
-        <div className="flex flex-col p-6 bg-white border-2 border-gray-100 rounded-2xl shadow-sm gap-6">
+        <div className="@container flex flex-col p-6 bg-white border-2 border-gray-100 rounded-2xl shadow-sm gap-6">
 
             {/* メインレイアウト：左側にシミュレーション、右側に数値データ */}
-            <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex flex-col @lg:flex-row gap-6">
 
                 {/* シミュレーションと操作パネル */}
                 <div className="flex-1 flex flex-col gap-4">
 
                     {/* シミュレーションエリア */}
-                    <div className="bg-sky-50 rounded-xl p-4 sm:p-8 border border-sky-100 w-full">
+                    <div className="bg-sky-50 rounded-xl p-4 @sm:p-8 border border-sky-100 w-full">
                         <div className="relative w-full aspect-[2/1]">
 
                             {/* 設定値 */}
-                            <div className="absolute top-0 right-0 bg-white/70 backdrop-blur-sm border border-sky-100 text-gray-500 text-[10px] sm:text-xs px-2 py-1 rounded shadow-sm z-10 text-left pointer-events-none">
+                            <div className="absolute top-0 right-0 bg-white/70 backdrop-blur-sm border border-sky-100 text-gray-500 text-[10px] @sm:text-xs px-2 py-1 rounded shadow-sm z-10 text-left pointer-events-none">
                                 <p>質量　　　： <span className="font-mono text-gray-700">{mass}</span> kg</p>
                                 <p>重力加速度： <span className="font-mono text-gray-700">{gravity}</span> m/s²</p>
                             </div>
@@ -289,7 +291,7 @@ export default function RollerCoasterBlock({
                 </div>
 
                 {/* 数値データ：縦に並べる */}
-                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 w-full lg:w-48 shrink-0">
+                <div className="grid grid-cols-2 @lg:grid-cols-1 gap-2 w-full @lg:w-48 shrink-0">
                     <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                         <p className="text-xs text-gray-500">高さ (h)</p>
                         <p className="text-lg font-mono font-bold text-gray-800">{currentHeight.toFixed(1)} m</p>

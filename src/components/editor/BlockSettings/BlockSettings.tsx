@@ -7,7 +7,9 @@ import { Trash2 } from 'lucide-react';
 import { useEditorStore } from '@/stores/useEditorStore';
 import TextBlockSettings from './TextBlockSettings';
 import RollerCoasterBlockSettings from './RollerCoasterBlockSettings';
+import TwoColumnBlockSettings from './TwoColumnBlockSettings';
 import type { BlockData } from '@/types/block';
+import { findBlockById } from '@/lib/blockTree';
 
 export default function BlockSettings() {
     // 設定パネル自体の開閉状態をこのコンポーネント内で管理
@@ -33,7 +35,9 @@ export default function BlockSettings() {
 
     // 選択中のブロックデータを特定
     const currentSlide = slides.find(s => s.id === activeSlideId);
-    const block = currentSlide?.blocks.find(b => b.id === selectedBlockId);
+    const block = currentSlide && selectedBlockId
+        ? findBlockById(currentSlide.blocks, selectedBlockId)
+        : undefined;
 
     // typeに応じて適切な設定パネルに振り分ける
     const renderSettingsPanel = (block: BlockData) => {
@@ -46,6 +50,8 @@ export default function BlockSettings() {
                 return <TextBlockSettings blockId={block.id} params={block.parameters} />;
             case 'roller-coaster':
                 return <RollerCoasterBlockSettings blockId={block.id} params={block.parameters} />;
+            case 'two-column':
+                return <TwoColumnBlockSettings blockId={block.id} params={block.parameters} />;
             default:
                 return <div className="text-sm text-gray-500 text-center py-4">設定項目がありません</div>;
         }

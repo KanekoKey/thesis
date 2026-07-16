@@ -1,7 +1,7 @@
 import type { TextParameters } from '@/types/block';
 
 export const defaultH4Params: Required<TextParameters> = {
-    content: '見出し4',
+    content: '',
 };
 
 export default function H4Block({ content = defaultH4Params.content }: TextParameters) {
