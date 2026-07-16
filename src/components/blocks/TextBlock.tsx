@@ -1,7 +1,7 @@
 import type { TextParameters } from '@/types/block';
 
 export const defaultTextParams: Required<TextParameters> = {
-    content: 'テキストを入力',
+    content: '',
 };
 
 export default function TextBlock({ content = defaultTextParams.content }: TextParameters) {

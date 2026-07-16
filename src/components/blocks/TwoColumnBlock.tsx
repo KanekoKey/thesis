@@ -1,19 +1,16 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useRef } from 'react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { restrictToVerticalAxis, restrictToFirstScrollableAncestor } from '@dnd-kit/modifiers';
 
 import { useEditorStore } from '@/stores/useEditorStore';
 import SortableBlockItem from './SortableBlockItem';
-import { BLOCK_DEFAULTS } from './defaults';
-import { STATIC_ITEMS, DYNAMIC_ITEMS } from './blockItems';
-import type { BlockData, BlockType } from '@/types/block';
+import type { BlockData } from '@/types/block';
 
-// 2列ブロックの中に、さらに2列ブロックを入れ子にすると操作が複雑になるため候補から除外
-const ADDABLE_ITEMS = [...STATIC_ITEMS, ...DYNAMIC_ITEMS].filter((item) => item.type !== 'two-column');
+export const MIN_RATIO = 0.15;
+export const MAX_RATIO = 0.85;
 
 interface ColumnProps {
     containerId: string;
@@ -23,8 +20,6 @@ interface ColumnProps {
 
 function Column({ containerId, columnIndex, blocks }: ColumnProps) {
     const moveBlock = useEditorStore((state) => state.moveBlock);
-    const addBlockToColumn = useEditorStore((state) => state.addBlockToColumn);
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -38,13 +33,8 @@ function Column({ containerId, columnIndex, blocks }: ColumnProps) {
         }
     };
 
-    const handleAddBlock = (type: BlockType) => {
-        addBlockToColumn(containerId, columnIndex, type, BLOCK_DEFAULTS[type] || {});
-        setIsMenuOpen(false);
-    };
-
     return (
-        <div className="flex-1 min-w-0 flex flex-col gap-2 p-2 border border-dashed border-gray-200 rounded-lg">
+        <div className="min-w-0 flex flex-col gap-2 py-2">
             <DndContext
                 id={`two-column-${containerId}-${columnIndex}`}
                 sensors={sensors}
@@ -57,41 +47,9 @@ function Column({ containerId, columnIndex, blocks }: ColumnProps) {
                         {blocks.map((block) => (
                             <SortableBlockItem key={block.id} block={block} />
                         ))}
-                        {blocks.length === 0 && (
-                            <div className="py-6 text-center text-xs text-gray-400">ブロックを追加</div>
-                        )}
                     </div>
                 </SortableContext>
             </DndContext>
-
-            <div className="relative">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setIsMenuOpen((v) => !v);
-                    }}
-                    className="w-full flex items-center justify-center gap-1 p-1.5 text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                >
-                    <Plus className="w-3.5 h-3.5" /> ブロック追加
-                </button>
-                {isMenuOpen && (
-                    <div className="absolute z-30 top-full left-0 mt-1 w-48 bg-white shadow-lg border border-gray-200 rounded-lg p-2 flex flex-col gap-1">
-                        {ADDABLE_ITEMS.map((item) => (
-                            <button
-                                key={item.type}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAddBlock(item.type);
-                                }}
-                                className="flex items-center gap-2 p-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-md text-left"
-                            >
-                                {item.icon && <item.icon className="w-4 h-4" />}
-                                {item.label}
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
         </div>
     );
 }
@@ -99,14 +57,52 @@ function Column({ containerId, columnIndex, blocks }: ColumnProps) {
 interface Props {
     id: string;
     columns: [BlockData[], BlockData[]];
+    ratio: number;
 }
 
-export default function TwoColumnBlock({ id, columns }: Props) {
+export default function TwoColumnBlock({ id, columns, ratio }: Props) {
+    const updateBlockParams = useEditorStore((state) => state.updateBlockParams);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const isDraggingRef = useRef(false);
+
+    const clampRatio = (value: number) => Math.min(MAX_RATIO, Math.max(MIN_RATIO, value));
+
+    const handlePointerMove = (e: PointerEvent) => {
+        if (!isDraggingRef.current || !containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        const newRatio = clampRatio((e.clientX - rect.left) / rect.width);
+        updateBlockParams(id, { ratio: newRatio });
+    };
+
+    const handlePointerUp = () => {
+        isDraggingRef.current = false;
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
+    };
+
+    const handlePointerDown = (e: React.PointerEvent) => {
+        e.stopPropagation();
+        isDraggingRef.current = true;
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', handlePointerUp);
+    };
+
     return (
-        <div className="flex gap-4" onClick={(e) => e.stopPropagation()}>
-            {columns.map((blocks, columnIndex) => (
-                <Column key={columnIndex} containerId={id} columnIndex={columnIndex} blocks={blocks} />
-            ))}
+        <div ref={containerRef} className="flex" onClick={(e) => e.stopPropagation()}>
+            <div style={{ flexGrow: ratio, flexBasis: 0 }} className="min-w-0">
+                <Column containerId={id} columnIndex={0} blocks={columns[0]} />
+            </div>
+
+            <div
+                onPointerDown={handlePointerDown}
+                className="w-3 shrink-0 flex items-center justify-center cursor-col-resize group"
+            >
+                <div className="w-px h-full bg-gray-200 group-hover:bg-blue-400 transition-colors" />
+            </div>
+
+            <div style={{ flexGrow: 1 - ratio, flexBasis: 0 }} className="min-w-0">
+                <Column containerId={id} columnIndex={1} blocks={columns[1]} />
+            </div>
         </div>
     );
 }

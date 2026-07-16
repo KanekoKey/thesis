@@ -37,6 +37,7 @@ export type TwoColumnBlockData = {
   type: 'two-column';
   parameters: {
     columns: [BlockData[], BlockData[]];
+    ratio: number; // 左列の幅の割合 (0〜1)。右列は 1 - ratio
   };
 };
 

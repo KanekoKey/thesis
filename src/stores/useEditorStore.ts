@@ -11,13 +11,9 @@ interface EditorState {
   selectedBlockId: string | null;
 
   // 操作 (Actions)
+  // 選択中のブロックの直後(列の中を選択していればその列)に追加する。
+  // 何も選択していなければスライド末尾に追加する。
   addBlock: <T extends BlockType>(
-    type: T,
-    initialParams: Extract<BlockData, { type: T }>['parameters']
-  ) => void;
-  addBlockToColumn: <T extends BlockType>(
-    containerId: string,
-    columnIndex: number,
     type: T,
     initialParams: Extract<BlockData, { type: T }>['parameters']
   ) => void;
@@ -46,28 +42,37 @@ export const useEditorStore = create<EditorState>()(
     // --- ブロックの追加 ---
     addBlock: (type, initialParams) => set((state) => {
       const currentSlide = state.slides.find(s => s.id === state.activeSlideId);
-      if (currentSlide) {
-        currentSlide.blocks.push({
-          id: crypto.randomUUID(),
-          type,
-          parameters: initialParams,
-        } as BlockData);
-      }
-    }),
-
-    // --- 2列ブロックの列へのブロック追加 ---
-    addBlockToColumn: (containerId, columnIndex, type, initialParams) => set((state) => {
-      const currentSlide = state.slides.find(s => s.id === state.activeSlideId);
       if (!currentSlide) return;
 
-      const container = findBlockById(currentSlide.blocks, containerId);
-      if (!container || container.type !== 'two-column') return;
-
-      container.parameters.columns[columnIndex].push({
+      const newBlock = {
         id: crypto.randomUUID(),
         type,
         parameters: initialParams,
-      } as BlockData);
+      } as BlockData;
+
+      // 2列ブロックは、左右の列にそれぞれ空のテキストブロックを入れた状態で追加する
+      // (デフォルト値をそのまま使うと複数の2列ブロックが列の配列を共有してしまうため、都度生成する)
+      let selectAfterInsert = newBlock.id;
+      if (newBlock.type === 'two-column') {
+        const leftBlock: BlockData = { id: crypto.randomUUID(), type: 'text', parameters: { content: '' } };
+        const rightBlock: BlockData = { id: crypto.randomUUID(), type: 'text', parameters: { content: '' } };
+        newBlock.parameters = { ratio: 0.5, columns: [[leftBlock], [rightBlock]] };
+        selectAfterInsert = leftBlock.id;
+      }
+
+      // 選択中のブロックがあれば、その直後(同じ階層)に挿入する
+      const list = state.selectedBlockId
+        ? findParentList(currentSlide.blocks, state.selectedBlockId)
+        : undefined;
+
+      if (list) {
+        const index = list.findIndex(b => b.id === state.selectedBlockId);
+        list.splice(index + 1, 0, newBlock);
+      } else {
+        currentSlide.blocks.push(newBlock);
+      }
+
+      state.selectedBlockId = selectAfterInsert;
     }),
 
     // --- 選択中ブロックの切り替え ---

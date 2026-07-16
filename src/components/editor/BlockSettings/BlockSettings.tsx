@@ -7,6 +7,7 @@ import { Trash2 } from 'lucide-react';
 import { useEditorStore } from '@/stores/useEditorStore';
 import TextBlockSettings from './TextBlockSettings';
 import RollerCoasterBlockSettings from './RollerCoasterBlockSettings';
+import TwoColumnBlockSettings from './TwoColumnBlockSettings';
 import type { BlockData } from '@/types/block';
 import { findBlockById } from '@/lib/blockTree';
 
@@ -49,6 +50,8 @@ export default function BlockSettings() {
                 return <TextBlockSettings blockId={block.id} params={block.parameters} />;
             case 'roller-coaster':
                 return <RollerCoasterBlockSettings blockId={block.id} params={block.parameters} />;
+            case 'two-column':
+                return <TwoColumnBlockSettings blockId={block.id} params={block.parameters} />;
             default:
                 return <div className="text-sm text-gray-500 text-center py-4">設定項目がありません</div>;
         }
