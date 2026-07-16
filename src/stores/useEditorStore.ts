@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { BlockType, BlockData } from '@/types/block';
 import type { SlideData } from '@/types/slide';
+import { findBlockById, findParentList } from '@/lib/blockTree';
 
 interface EditorState {
   // 状態 (State)
@@ -11,6 +12,12 @@ interface EditorState {
 
   // 操作 (Actions)
   addBlock: <T extends BlockType>(
+    type: T,
+    initialParams: Extract<BlockData, { type: T }>['parameters']
+  ) => void;
+  addBlockToColumn: <T extends BlockType>(
+    containerId: string,
+    columnIndex: number,
     type: T,
     initialParams: Extract<BlockData, { type: T }>['parameters']
   ) => void;
@@ -48,6 +55,21 @@ export const useEditorStore = create<EditorState>()(
       }
     }),
 
+    // --- 2列ブロックの列へのブロック追加 ---
+    addBlockToColumn: (containerId, columnIndex, type, initialParams) => set((state) => {
+      const currentSlide = state.slides.find(s => s.id === state.activeSlideId);
+      if (!currentSlide) return;
+
+      const container = findBlockById(currentSlide.blocks, containerId);
+      if (!container || container.type !== 'two-column') return;
+
+      container.parameters.columns[columnIndex].push({
+        id: crypto.randomUUID(),
+        type,
+        parameters: initialParams,
+      } as BlockData);
+    }),
+
     // --- 選択中ブロックの切り替え ---
     setSelectedBlockId: (id) => set((state) => {
       state.selectedBlockId = id;
@@ -58,7 +80,7 @@ export const useEditorStore = create<EditorState>()(
       const currentSlide = state.slides.find(s => s.id === state.activeSlideId);
       if (!currentSlide) return;
 
-      const targetBlock = currentSlide.blocks.find(b => b.id === id);
+      const targetBlock = findBlockById(currentSlide.blocks, id);
       if (targetBlock) {
         targetBlock.parameters = { ...targetBlock.parameters, ...newParams };
       }
@@ -69,20 +91,23 @@ export const useEditorStore = create<EditorState>()(
       const currentSlide = state.slides.find(s => s.id === state.activeSlideId);
       if (!currentSlide) return;
 
-      const targetIndex = currentSlide.blocks.findIndex(b => b.id === id);
+      const list = findParentList(currentSlide.blocks, id);
+      if (!list) return;
+
+      const targetIndex = list.findIndex(b => b.id === id);
       if (targetIndex === -1) return;
 
       if (state.selectedBlockId === id) {
         if (targetIndex > 0) {
-          state.selectedBlockId = currentSlide.blocks[targetIndex - 1].id;
-        } else if (currentSlide.blocks.length > 1) {
-          state.selectedBlockId = currentSlide.blocks[targetIndex + 1].id;
+          state.selectedBlockId = list[targetIndex - 1].id;
+        } else if (list.length > 1) {
+          state.selectedBlockId = list[targetIndex + 1].id;
         } else {
           state.selectedBlockId = null;
         }
       }
 
-      currentSlide.blocks.splice(targetIndex, 1);
+      list.splice(targetIndex, 1);
     }),
 
     // --- ブロックの移動 ---
@@ -90,12 +115,15 @@ export const useEditorStore = create<EditorState>()(
       const currentSlide = state.slides.find(s => s.id === state.activeSlideId);
       if (!currentSlide) return;
 
-      const oldIndex = currentSlide.blocks.findIndex(b => b.id === activeId);
-      const newIndex = currentSlide.blocks.findIndex(b => b.id === overId);
+      const list = findParentList(currentSlide.blocks, activeId);
+      if (!list) return;
+
+      const oldIndex = list.findIndex(b => b.id === activeId);
+      const newIndex = list.findIndex(b => b.id === overId);
 
       if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-        const [movedBlock] = currentSlide.blocks.splice(oldIndex, 1);
-        currentSlide.blocks.splice(newIndex, 0, movedBlock);
+        const [movedBlock] = list.splice(oldIndex, 1);
+        list.splice(newIndex, 0, movedBlock);
       }
     }),
 

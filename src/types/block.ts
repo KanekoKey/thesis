@@ -32,6 +32,14 @@ export type CounterBlockData = {
   };
 }
 
+export type TwoColumnBlockData = {
+  id: string;
+  type: 'two-column';
+  parameters: {
+    columns: [BlockData[], BlockData[]];
+  };
+};
+
 // 全てのブロックの型を合体（ユニオン）
 export type BlockData =
   | TextBlockData
@@ -40,7 +48,8 @@ export type BlockData =
   | H3BlockData
   | H4BlockData
   | RollerCoasterBlockData
-  | CounterBlockData;
+  | CounterBlockData
+  | TwoColumnBlockData;
 
 // ブロックの種類だけを抜き取るユーティリティ型
 export type BlockType = BlockData['type'];

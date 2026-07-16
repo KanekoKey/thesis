@@ -1,59 +1,11 @@
 'use client';
 
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { restrictToVerticalAxis, restrictToFirstScrollableAncestor } from '@dnd-kit/modifiers';
 
 import { useEditorStore } from '@/stores/useEditorStore';
-import Block from '@/components/blocks/Block';
-import type { BlockData } from '@/types/block';
-
-// --- アイテムコンポーネント ---
-function SortableBlockItem({ block }: { block: BlockData }) {
-    const selectedBlockId = useEditorStore((state) => state.selectedBlockId);
-    const setSelectedBlockId = useEditorStore((state) => state.setSelectedBlockId);
-    const isSelected = selectedBlockId === block.id;
-
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({ id: block.id });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        zIndex: isDragging ? 50 : 1,
-        opacity: isDragging ? 0.5 : 1,
-    };
-
-    return (
-        <div
-            ref={setNodeRef}
-            style={style}
-            className={`relative p-4 rounded-lg border-2 transition-colors cursor-pointer bg-white ${
-                isSelected ? 'border-blue-500 bg-blue-50/30' : 'border-transparent hover:border-gray-200'
-            }`}
-            onClick={() => setSelectedBlockId(block.id)}
-        >
-            {isSelected && (
-                <div
-                    {...attributes}
-                    {...listeners}
-                    className="absolute -top-3 -left-3 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-sm cursor-grab active:cursor-grabbing hover:scale-110 transition-transform"
-                >
-                    <span className="text-xs">✥</span>
-                </div>
-            )}
-            <Block block={block} />
-        </div>
-    );
-}
+import SortableBlockItem from '@/components/blocks/SortableBlockItem';
 
 // --- メインのキャンバス ---
 export default function SlideCanvas() {
