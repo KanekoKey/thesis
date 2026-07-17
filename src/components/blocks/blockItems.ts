@@ -1,4 +1,4 @@
-import { Type, Heading1, Heading2, Heading3, Heading4, RollerCoaster, SquarePlus, Columns2 } from 'lucide-react';
+import { Type, Heading1, Heading2, Heading3, Heading4, RollerCoaster, Columns2 } from 'lucide-react';
 import type { BlockType } from '@/types/block';
 
 export type BlockItem = {
@@ -18,5 +18,4 @@ export const STATIC_ITEMS: BlockItem[] = [
 
 export const DYNAMIC_ITEMS: BlockItem[] = [
     { type: 'roller-coaster', icon: RollerCoaster, label: '力学的エネルギー' },
-    { type: 'counter', icon: SquarePlus, label: 'カウンター' },
 ];
