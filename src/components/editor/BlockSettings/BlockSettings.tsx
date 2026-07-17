@@ -8,8 +8,14 @@ import { useEditorStore } from '@/stores/useEditorStore';
 import TextBlockSettings from './TextBlockSettings';
 import RollerCoasterBlockSettings from './RollerCoasterBlockSettings';
 import TwoColumnBlockSettings from './TwoColumnBlockSettings';
-import type { BlockData } from '@/types/block';
+import type { BlockData, BlockType } from '@/types/block';
 import { findBlockById } from '@/lib/blockTree';
+import { STATIC_ITEMS, DYNAMIC_ITEMS } from '@/components/blocks/blockItems';
+
+// ブロックtypeからブロック名（ラベル）を引くためのマップ
+const BLOCK_LABELS: Record<BlockType, string> = Object.fromEntries(
+    [...STATIC_ITEMS, ...DYNAMIC_ITEMS].map((item) => [item.type, item.label])
+) as Record<BlockType, string>;
 
 export default function BlockSettings() {
     // 設定パネル自体の開閉状態をこのコンポーネント内で管理
@@ -70,7 +76,7 @@ export default function BlockSettings() {
         return (
             <div className="flex flex-col h-full">
                 <div className="mb-4 pb-2 border-b border-gray-100 flex justify-between items-center">
-                    <span className="text-sm font-bold text-gray-700">プロパティ</span>
+                    <span className="text-sm font-bold text-gray-700">{BLOCK_LABELS[block.type] ?? block.type}</span>
                     <span className="text-xs px-2 py-0.5 bg-gray-100 rounded text-gray-500">
                         {block.type}
                     </span>
