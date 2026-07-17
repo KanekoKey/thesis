@@ -7,6 +7,7 @@ import { restrictToVerticalAxis, restrictToFirstScrollableAncestor } from '@dnd-
 
 import { useEditorStore } from '@/stores/useEditorStore';
 import SortableBlockItem from './SortableBlockItem';
+import { getColumnMinWidth } from './blockMinWidth';
 import type { BlockData } from '@/types/block';
 
 export const MIN_RATIO = 0.15;
@@ -88,8 +89,8 @@ export default function TwoColumnBlock({ id, columns, ratio }: Props) {
     };
 
     return (
-        <div ref={containerRef} className="flex" onClick={(e) => e.stopPropagation()}>
-            <div style={{ flexGrow: ratio, flexBasis: 0 }} className="min-w-0">
+        <div ref={containerRef} className="flex overflow-x-auto custom-scrollbar" onClick={(e) => e.stopPropagation()}>
+            <div style={{ flexGrow: ratio, flexBasis: 0, minWidth: getColumnMinWidth(columns[0]) }}>
                 <Column containerId={id} columnIndex={0} blocks={columns[0]} />
             </div>
 
@@ -100,7 +101,7 @@ export default function TwoColumnBlock({ id, columns, ratio }: Props) {
                 <div className="w-px h-full bg-gray-200 group-hover:bg-blue-400 transition-colors" />
             </div>
 
-            <div style={{ flexGrow: 1 - ratio, flexBasis: 0 }} className="min-w-0">
+            <div style={{ flexGrow: 1 - ratio, flexBasis: 0, minWidth: getColumnMinWidth(columns[1]) }}>
                 <Column containerId={id} columnIndex={1} blocks={columns[1]} />
             </div>
         </div>

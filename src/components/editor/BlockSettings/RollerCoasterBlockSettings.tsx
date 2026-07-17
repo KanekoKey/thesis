@@ -18,6 +18,16 @@ export default function RollerCoasterBlockSettings({ blockId, params }: Props) {
     return (
         <div className="flex flex-col gap-4">
             <SelectField
+                label="レイアウト"
+                value={params.layout || 'horizontal'}
+                options={[
+                    { value: 'horizontal', label: '横並び' },
+                    { value: 'vertical', label: '縦並び' },
+                ]}
+                onChange={(val) => update({ layout: val })}
+            />
+
+            <SelectField
                 label="コース形状"
                 value={params.trackShape || 'drop'}
                 options={[
