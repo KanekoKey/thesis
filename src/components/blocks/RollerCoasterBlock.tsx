@@ -1,10 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import type { RollerCoasterBlockData } from '@/types/block';
+import type { RollerCoasterBlockData, RollerCoasterLayout } from '@/types/block';
+
+// これ未満の幅ではシミュレーション/数値パネルのレイアウトが崩れるため、
+// two-column内などで下回る場合は横スクロールさせる（TwoColumnBlockが参照）
+// horizontal(横並び)はシミュレーションと数値データが横に並ぶ分、vertical(縦並び)より広い幅が必要
+export const ROLLER_COASTER_MIN_WIDTH: Record<RollerCoasterLayout, number> = {
+    horizontal: 500,
+    vertical:   300,
+};
 
 // --- RollerCoasterBlock｜型定義 ---
 export const defaultRollerCoasterParams: Required<RollerCoasterBlockData['parameters']> = {
+    layout: 'horizontal',
     trackShape: 'drop',
     mass: 10,
     gravity: 9.8,
@@ -15,6 +24,7 @@ export const defaultRollerCoasterParams: Required<RollerCoasterBlockData['parame
 
 // --- RollerCoasterBlock | コンポーネント ---
 export default function RollerCoasterBlock({
+    layout = defaultRollerCoasterParams.layout,
     trackShape = defaultRollerCoasterParams.trackShape,
     mass = defaultRollerCoasterParams.mass,
     gravity = defaultRollerCoasterParams.gravity,
@@ -167,23 +177,24 @@ export default function RollerCoasterBlock({
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
     // --- RollerCoasterBlock｜UI ---
-    // 2列ブロックの列内など、画面幅は広くても実際の描画幅が狭い場所に置かれることがあるため、
-    // ビューポート基準のブレークポイント(sm:/lg:)ではなく、自身の描画幅を基準にするコンテナクエリ(@container)を使う
+    // 文字サイズ等はcqw単位で自身の描画幅に応じて縮小するため、
+    // ビューポート基準のブレークポイントではなく自身の描画幅を基準にするコンテナクエリ(@container)を使う
+    // (縦/横の並び自体は幅による自動切り替えではなく、layoutプロパティで教員が明示的に指定する)
     return (
-        <div className="@container flex flex-col p-6 bg-white border-2 border-gray-100 rounded-2xl shadow-sm gap-6">
+        <div className="@container flex flex-col p-4 bg-white border-2 border-gray-100 rounded-2xl shadow-sm gap-4">
 
-            {/* メインレイアウト：左側にシミュレーション、右側に数値データ */}
-            <div className="flex flex-col @lg:flex-row gap-6">
+            {/* メインレイアウト：シミュレーションと数値データの並び順はlayoutプロパティで切り替え */}
+            <div className={`flex gap-4 ${layout === 'horizontal' ? 'flex-row' : 'flex-col'}`}>
 
                 {/* シミュレーションと操作パネル */}
-                <div className="flex-1 flex flex-col gap-4">
+                <div className="flex-1 flex flex-col gap-3">
 
                     {/* シミュレーションエリア */}
-                    <div className="bg-sky-50 rounded-xl p-4 @sm:p-8 border border-sky-100 w-full">
+                    <div className="bg-sky-50 rounded-xl p-3 @sm:p-4 border border-sky-100 w-full">
                         <div className="relative w-full aspect-[2/1]">
 
                             {/* 設定値 */}
-                            <div className="absolute top-0 right-0 bg-white/70 backdrop-blur-sm border border-sky-100 text-gray-500 text-[10px] @sm:text-xs px-2 py-1 rounded shadow-sm z-10 text-left pointer-events-none">
+                            <div className="absolute top-0 right-0 bg-white/70 backdrop-blur-sm border border-sky-100 text-gray-500 text-[clamp(7px,2.6cqw,11px)] px-2 py-1 rounded shadow-sm z-10 text-left pointer-events-none">
                                 <p>質量　　　： <span className="font-mono text-gray-700">{mass}</span> kg</p>
                                 <p>重力加速度： <span className="font-mono text-gray-700">{gravity}</span> m/s²</p>
                             </div>
@@ -204,12 +215,12 @@ export default function RollerCoasterBlock({
                                     className="absolute bottom-0 flex flex-col items-center"
                                     style={{ left: '-1%', top: `${getSvgY(startPos.h)}%` }}
                                 >
-                                    <svg width="10" height="6" viewBox="0 0 10 6" className="text-gray-400 fill-current"><polygon points="5,0 0,6 10,6" /></svg>
+                                    <svg viewBox="0 0 10 6" className="w-[clamp(6px,2.2cqw,10px)] h-[clamp(3.6px,1.3cqw,6px)] text-gray-400 fill-current"><polygon points="5,0 0,6 10,6" /></svg>
                                     <div className="flex-1 border-l-2 border-dashed border-gray-300 w-0 my-0.5"></div>
-                                    <div className="absolute top-1/2 left-3 -translate-y-1/2 text-xs font-bold text-gray-500 whitespace-nowrap bg-sky-50/80 px-1 rounded">
+                                    <div className="absolute top-1/2 left-3 -translate-y-1/2 text-[clamp(8px,2.8cqw,12px)] font-bold text-gray-500 whitespace-nowrap bg-sky-50/80 px-1 rounded">
                                         {baseHeight.toFixed(1)} m
                                     </div>
-                                    <svg width="10" height="6" viewBox="0 0 10 6" className="text-gray-400 fill-current"><polygon points="5,6 0,0 10,0" /></svg>
+                                    <svg viewBox="0 0 10 6" className="w-[clamp(6px,2.2cqw,10px)] h-[clamp(3.6px,1.3cqw,6px)] text-gray-400 fill-current"><polygon points="5,6 0,0 10,0" /></svg>
                                 </div>
                             )}
 
@@ -223,18 +234,18 @@ export default function RollerCoasterBlock({
                                         transform: 'translateX(-50%)'
                                     }}
                                 >
-                                    <svg width="10" height="6" viewBox="0 0 10 6" className="text-gray-400 fill-current"><polygon points="5,0 0,6 10,6" /></svg>
+                                    <svg viewBox="0 0 10 6" className="w-[clamp(6px,2.2cqw,10px)] h-[clamp(3.6px,1.3cqw,6px)] text-gray-400 fill-current"><polygon points="5,0 0,6 10,6" /></svg>
                                     <div className="flex-1 border-l-2 border-dashed border-gray-300 w-0 my-0.5"></div>
-                                    <div className="absolute top-1/2 left-3 -translate-y-1/2 text-xs font-bold text-gray-500 whitespace-nowrap bg-sky-50/80 px-1 rounded">
+                                    <div className="absolute top-1/2 left-3 -translate-y-1/2 text-[clamp(8px,2.8cqw,12px)] font-bold text-gray-500 whitespace-nowrap bg-sky-50/80 px-1 rounded">
                                         {peakHeight.toFixed(1)} m
                                     </div>
-                                    <svg width="10" height="6" viewBox="0 0 10 6" className="text-gray-400 fill-current"><polygon points="5,6 0,0 10,0" /></svg>
+                                    <svg viewBox="0 0 10 6" className="w-[clamp(6px,2.2cqw,10px)] h-[clamp(3.6px,1.3cqw,6px)] text-gray-400 fill-current"><polygon points="5,6 0,0 10,0" /></svg>
                                 </div>
                             )}
 
                             {/* エネルギー不足警告バッジ */}
                             {isAtLimit && (
-                                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-gray-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md z-20">
+                                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-gray-600 text-white text-[clamp(8px,2.8cqw,12px)] font-bold px-[clamp(6px,2.5cqw,12px)] py-[clamp(3px,1.2cqw,6px)] rounded-full shadow-md z-20">
                                     ⚠️ これ以上進めません
                                 </div>
                             )}
@@ -253,8 +264,7 @@ export default function RollerCoasterBlock({
                             >
                                 <svg
                                     viewBox="-8 -10 16 12"
-                                    width="40" height="30"
-                                    className="overflow-visible"
+                                    className="w-[clamp(24px,10cqw,40px)] h-[clamp(18px,7.5cqw,30px)] overflow-visible"
                                     style={{ transform: 'translate(-50%, -85%)' }}
                                 >
                                     <rect x="-6" y="-10" width="12" height="7" rx="1.5" className="fill-red-500 shadow-sm" />
@@ -267,9 +277,9 @@ export default function RollerCoasterBlock({
                     </div>
 
                     {/* 操作パネル */}
-                    <div className="bg-gray-50 rounded-xl px-4 py-6 border border-gray-200">
-                        <div className="flex flex-col gap-3">
-                            <div className="flex justify-between text-xs font-bold text-gray-400">
+                    <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
+                        <div className="flex flex-col gap-2">
+                            <div className="flex justify-between text-[clamp(8px,2.6cqw,12px)] font-bold text-gray-400">
                                 <span>START</span>
                                 <span className="text-blue-600">位置をスライドして動かそう</span>
                                 <span>GOAL</span>
@@ -290,25 +300,25 @@ export default function RollerCoasterBlock({
                     </div>
                 </div>
 
-                {/* 数値データ：縦に並べる */}
-                <div className="grid grid-cols-2 @lg:grid-cols-1 gap-2 w-full @lg:w-48 shrink-0">
-                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                        <p className="text-xs text-gray-500">高さ (h)</p>
-                        <p className="text-lg font-mono font-bold text-gray-800">{currentHeight.toFixed(1)} m</p>
+                {/* 数値データ：横並び時は1列で縦積み、縦並び時は2列で横に並べる */}
+                <div className={`grid gap-2 shrink-0 ${layout === 'horizontal' ? 'grid-cols-1 w-36' : 'grid-cols-2 w-full'}`}>
+                    <div className="bg-gray-50 p-2 rounded-lg border border-gray-100">
+                        <p className="text-[clamp(8px,2.4cqw,12px)] text-gray-500">高さ (h)</p>
+                        <p className="text-[clamp(11px,4cqw,18px)] font-mono font-bold text-gray-800">{currentHeight.toFixed(1)} m</p>
                     </div>
-                    <div className={`p-3 rounded-lg border ${isAtLimit ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
-                        <p className={`text-xs ${isAtLimit ? 'text-red-500' : 'text-gray-500'}`}>速度 (v)</p>
-                        <p className={`text-lg font-mono font-bold ${isAtLimit ? 'text-red-600' : 'text-gray-800'}`}>
+                    <div className={`p-2 rounded-lg border ${isAtLimit ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
+                        <p className={`text-[clamp(8px,2.4cqw,12px)] ${isAtLimit ? 'text-red-500' : 'text-gray-500'}`}>速度 (v)</p>
+                        <p className={`text-[clamp(11px,4cqw,18px)] font-mono font-bold ${isAtLimit ? 'text-red-600' : 'text-gray-800'}`}>
                             {velocity.toFixed(1)} m/s
                         </p>
                     </div>
-                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                        <p className="text-xs text-blue-600">位置エネルギー (E)</p>
-                        <p className="text-lg font-mono font-bold text-blue-800">{Math.round(potentialEnergy)} J</p>
+                    <div className="bg-blue-50 p-2 rounded-lg border border-blue-100">
+                        <p className="text-[clamp(8px,2.4cqw,12px)] text-blue-600">位置エネルギー (E)</p>
+                        <p className="text-[clamp(11px,4cqw,18px)] font-mono font-bold text-blue-800">{Math.round(potentialEnergy)} J</p>
                     </div>
-                    <div className="bg-green-50 p-3 rounded-lg border border-green-100">
-                        <p className="text-xs text-green-600">運動エネルギー (K)</p>
-                        <p className="text-lg font-mono font-bold text-green-800">{Math.round(kineticEnergy)} J</p>
+                    <div className="bg-green-50 p-2 rounded-lg border border-green-100">
+                        <p className="text-[clamp(8px,2.4cqw,12px)] text-green-600">運動エネルギー (K)</p>
+                        <p className="text-[clamp(11px,4cqw,18px)] font-mono font-bold text-green-800">{Math.round(kineticEnergy)} J</p>
                     </div>
                 </div>
             </div>

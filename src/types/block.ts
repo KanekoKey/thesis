@@ -8,10 +8,14 @@ export type H2BlockData = { id: string; type: 'h2'; parameters: TextParameters; 
 export type H3BlockData = { id: string; type: 'h3'; parameters: TextParameters; };
 export type H4BlockData = { id: string; type: 'h4'; parameters: TextParameters; };
 
+export type RollerCoasterLayout = 'horizontal' | 'vertical';
+
 export type RollerCoasterBlockData = {
   id: string;
   type: 'roller-coaster';
   parameters: {
+    layout?: RollerCoasterLayout;
+    // horizontal: シミュレーションと数値データを横並び, vertical: 縦並び
     trackShape?: 'drop' | 'camel-back' | 'loop';
     // コース形状(drop: 下り坂, camel-back: 大小二つの山, loop: ループ)
     mass?: number;                      // 質量 [kg]
