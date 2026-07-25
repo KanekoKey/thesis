@@ -1,9 +1,8 @@
 'use client';
 
 import { useRef } from 'react';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { restrictToVerticalAxis, restrictToFirstScrollableAncestor } from '@dnd-kit/modifiers';
+import { useDroppable } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { useEditorStore } from '@/stores/useEditorStore';
 import SortableBlockItem from './SortableBlockItem';
@@ -15,42 +14,27 @@ export const MAX_RATIO = 0.85;
 
 interface ColumnProps {
     containerId: string;
-    columnIndex: number;
     blocks: BlockData[];
 }
 
-function Column({ containerId, columnIndex, blocks }: ColumnProps) {
-    const moveBlock = useEditorStore((state) => state.moveBlock);
-
-    const sensors = useSensors(
-        useSensor(PointerSensor),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-    );
-
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (over && active.id !== over.id) {
-            moveBlock(active.id as string, over.id as string);
-        }
-    };
+function Column({ containerId, blocks }: ColumnProps) {
+    const { setNodeRef } = useDroppable({
+        id: containerId,
+        data: { type: 'container', containerId },
+    });
 
     return (
-        <div className="min-w-0 flex flex-col gap-2 py-2">
-            <DndContext
-                id={`two-column-${containerId}-${columnIndex}`}
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
-                onDragEnd={handleDragEnd}
-            >
-                <SortableContext items={blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
-                    <div className="flex flex-col gap-2">
-                        {blocks.map((block) => (
-                            <SortableBlockItem key={block.id} block={block} />
-                        ))}
-                    </div>
-                </SortableContext>
-            </DndContext>
+        <div ref={setNodeRef} className="min-w-0 min-h-[48px] h-full flex flex-col gap-2 py-2">
+            <SortableContext id={containerId} items={blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
+                <div className="flex flex-col gap-2 flex-1">
+                    {blocks.map((block) => (
+                        <SortableBlockItem key={block.id} block={block} />
+                    ))}
+                    {blocks.length === 0 && (
+                        <div className="flex-1 min-h-[32px] rounded border border-dashed border-gray-200" />
+                    )}
+                </div>
+            </SortableContext>
         </div>
     );
 }
@@ -91,7 +75,7 @@ export default function TwoColumnBlock({ id, columns, ratio }: Props) {
     return (
         <div ref={containerRef} className="flex overflow-x-auto custom-scrollbar" onClick={(e) => e.stopPropagation()}>
             <div style={{ flexGrow: ratio, flexBasis: 0, minWidth: getColumnMinWidth(columns[0]) }}>
-                <Column containerId={id} columnIndex={0} blocks={columns[0]} />
+                <Column containerId={`${id}:0`} blocks={columns[0]} />
             </div>
 
             <div
@@ -102,7 +86,7 @@ export default function TwoColumnBlock({ id, columns, ratio }: Props) {
             </div>
 
             <div style={{ flexGrow: 1 - ratio, flexBasis: 0, minWidth: getColumnMinWidth(columns[1]) }}>
-                <Column containerId={id} columnIndex={1} blocks={columns[1]} />
+                <Column containerId={`${id}:1`} blocks={columns[1]} />
             </div>
         </div>
     );

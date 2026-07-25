@@ -6,6 +6,7 @@ import EditorFooter from '@/components/editor/EditorFooter';
 import SlideNavigator from '@/components/editor/SlideNavigator';
 import SlideCanvas from '@/components/editor/SlideCanvas';
 import BlockSelector from '@/components/editor/BlockSelector';
+import EditorBlockDndContext from '@/components/editor/EditorBlockDndContext';
 import BlockSettings from '@/src/components/editor/BlockSettings/BlockSettings';
 import { useSaveDeck } from '@/hooks/useSaveDeck';
 
@@ -25,8 +26,10 @@ export default function EditorPage({ params }: { params: Promise<{ deckId: strin
 
             {/* --- メインエリア --- */}
             <SlideNavigator />
-            <SlideCanvas />
-            <BlockSelector />
+            <EditorBlockDndContext>
+                <SlideCanvas />
+                <BlockSelector />
+            </EditorBlockDndContext>
             <BlockSettings />
 
             <EditorFooter saveStatus={saveStatus} />
