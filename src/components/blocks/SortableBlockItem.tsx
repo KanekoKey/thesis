@@ -25,6 +25,7 @@ export default function SortableBlockItem({ block }: { block: BlockData }) {
         transform: CSS.Transform.toString(transform),
         transition,
         zIndex: isDragging ? 50 : 1,
+        opacity: isDragging ? 0.4 : 1,
     };
 
     return (
@@ -32,32 +33,25 @@ export default function SortableBlockItem({ block }: { block: BlockData }) {
             ref={setNodeRef}
             data-block-id={block.id}
             style={style}
-            className={`relative p-4 rounded-lg border-2 transition-colors cursor-pointer bg-white ${
-                isDragging
-                    ? 'border-dashed border-blue-300 bg-blue-50/40'
-                    : isSelected
-                        ? 'border-blue-500 bg-blue-50/30'
-                        : 'border-transparent hover:border-gray-200'
+            className={`group relative p-4 rounded-lg border-2 transition-colors cursor-pointer bg-white ${
+                isSelected ? 'border-blue-500 bg-blue-50/30' : 'border-transparent hover:border-gray-200'
             }`}
             onClick={(e) => {
                 e.stopPropagation();
                 setSelectedBlockId(block.id);
             }}
         >
-            {isSelected && !isDragging && (
-                <div
-                    {...attributes}
-                    {...listeners}
-                    className="absolute -top-3 -left-3 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-sm cursor-grab active:cursor-grabbing hover:scale-110 transition-transform select-none touch-none"
-                >
-                    <span className="text-xs">✥</span>
-                </div>
-            )}
-            {/* ドラッグ中は実体を非表示にし、見た目はDragOverlay側の固定サイズのプレビューに任せる
-                (この場所のサイズだけはレイアウトの隙間として保持する) */}
-            <div className={isDragging ? 'invisible' : ''}>
-                <Block block={block} />
+            {/* ドラッグハンドル: ホバー中、または選択中に表示する(Notionに倣い選択なしでも掴めるように) */}
+            <div
+                {...attributes}
+                {...listeners}
+                className={`absolute -top-3 -left-3 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-sm cursor-grab active:cursor-grabbing hover:scale-110 transition-opacity select-none touch-none ${
+                    isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                }`}
+            >
+                <span className="text-xs">✥</span>
             </div>
+            <Block block={block} />
         </div>
     );
 }

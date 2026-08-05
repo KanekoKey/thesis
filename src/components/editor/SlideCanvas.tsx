@@ -19,7 +19,10 @@ export default function SlideCanvas() {
     });
 
     return (
-        <div className="w-[85vw] max-w-[1024px] aspect-video bg-white shadow-sm border border-gray-300 relative mt-8 flex flex-col z-0">
+        <div
+            data-slide-canvas
+            className="w-[85vw] max-w-[1024px] aspect-video bg-white shadow-sm border border-gray-300 relative mt-8 flex flex-col z-0"
+        >
             <div ref={setNodeRef} className="p-8 flex-1 overflow-y-auto">
                 <SortableContext
                     id={ROOT_CONTAINER_ID}

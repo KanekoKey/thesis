@@ -1,27 +1,24 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
     DndContext,
     DragOverlay,
     KeyboardSensor,
     PointerSensor,
     closestCenter,
+    pointerWithin,
     useSensor,
     useSensors,
 } from '@dnd-kit/core';
-import type { DragStartEvent, DragOverEvent, DragEndEvent, Over } from '@dnd-kit/core';
+import type { Active, CollisionDetection, DragEndEvent, DragOverEvent, DragStartEvent, Over } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
 import { useEditorStore } from '@/stores/useEditorStore';
 import { BLOCK_DEFAULTS } from '@/components/blocks/defaults';
+import { STATIC_ITEMS, DYNAMIC_ITEMS } from '@/components/blocks/blockItems';
 import Block from '@/components/blocks/Block';
-import {
-    ROOT_CONTAINER_ID,
-    findBlockById,
-    findContainerIdForBlock,
-    findContainerList,
-} from '@/lib/blockTree';
+import { findBlockById, findContainerList } from '@/lib/blockTree';
 import type { BlockData, BlockType } from '@/types/block';
 
 // BlockSelectorのボタンをドラッグ開始したときに active.data に載せる情報
@@ -43,76 +40,110 @@ function isContainerDropData(data: unknown): data is ContainerDropData {
     return !!data && typeof data === 'object' && (data as ContainerDropData).type === 'container';
 }
 
-// over(ドロップ先候補)から「どのコンテナの何番目に置こうとしているか」を求める
-function resolveOverTarget(over: Over | null, blocks: BlockData[]): { containerId: string; index: number } | null {
-    if (!over) return null;
+const PALETTE_ITEMS_BY_TYPE = Object.fromEntries(
+    [...STATIC_ITEMS, ...DYNAMIC_ITEMS].map((item) => [item.type, item])
+);
 
+// 挿入位置を示すインジケーターの見た目情報。実データは動かさず、これだけを描画する
+type Indicator =
+    | { kind: 'line'; top: number; left: number; width: number }
+    | { kind: 'empty'; top: number; left: number; width: number; height: number };
+
+// over(ドロップ先候補)への挿入位置(コンテナID+index)と、それを示すインジケーターを同時に求める。
+// sortableアイテムにホバーしている場合は、ドラッグ中の要素がその上半分/下半分どちらにあるかで
+// 「前に挿入」か「後ろに挿入」かを判定する
+function resolveDrag(
+    active: Active,
+    over: Over | null,
+    blocks: BlockData[]
+): { containerId: string; index: number; indicator: Indicator } | null {
+    if (!over || !over.rect) return null;
     const data = over.data.current;
-    if (isSortableItemData(data)) {
-        return { containerId: data.sortable.containerId, index: data.sortable.index };
-    }
+
     if (isContainerDropData(data)) {
         const list = findContainerList(blocks, data.containerId) ?? [];
-        return { containerId: data.containerId, index: list.length };
+        const r = over.rect;
+
+        if (list.length === 0) {
+            return {
+                containerId: data.containerId,
+                index: 0,
+                indicator: { kind: 'empty', top: r.top, left: r.left, width: r.width, height: r.height },
+            };
+        }
+
+        // 中身があるコンテナの余白(パディング等、どのブロックの矩形にも含まれない隙間)にホバーした場合。
+        // コンテナ全体をハイライトすると中身を全部置き換えるように見えて誤解を招くため、
+        // 末尾のブロックの直後に挿入される線インジケーターを表示する
+        const lastBlockId = list[list.length - 1].id;
+        const lastNode = document.querySelector<HTMLElement>(`[data-slide-canvas] [data-block-id="${lastBlockId}"]`);
+        const lastRect = lastNode?.getBoundingClientRect();
+
+        return {
+            containerId: data.containerId,
+            index: list.length,
+            indicator: lastRect
+                ? { kind: 'line', top: lastRect.bottom, left: lastRect.left, width: lastRect.width }
+                : { kind: 'empty', top: r.top, left: r.left, width: r.width, height: r.height },
+        };
     }
+
+    if (isSortableItemData(data)) {
+        const overRect = over.rect;
+        const activeRect = active.rect.current.translated;
+        const isAfter = !!(
+            activeRect &&
+            activeRect.top + activeRect.height / 2 > overRect.top + overRect.height / 2
+        );
+        return {
+            containerId: data.sortable.containerId,
+            index: data.sortable.index + (isAfter ? 1 : 0),
+            indicator: {
+                kind: 'line',
+                top: isAfter ? overRect.top + overRect.height : overRect.top,
+                left: overRect.left,
+                width: overRect.width,
+            },
+        };
+    }
+
     return null;
 }
+
+// closestCenterはドラッグ中の要素自身の矩形の中心同士を比較するため、
+// ルート直下のフル幅ブロックのように「元の矩形が持ち先(列など)よりずっと大きい」場合、
+// 矩形の中心が実際のポインタ位置から大きくズレて誤ったコンテナに判定されてしまう。
+// そのため、まず実際のポインタ位置で当たっているコンテナを優先し(pointerWithin)、
+// どこにも当たっていない場合(キーボード操作時など)だけclosestCenterにフォールバックする
+const collisionDetection: CollisionDetection = (args) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+        return pointerCollisions;
+    }
+    return closestCenter(args);
+};
 
 function getCurrentBlocks(): BlockData[] {
     const state = useEditorStore.getState();
     return state.slides.find((s) => s.id === state.activeSlideId)?.blocks ?? [];
 }
 
+// ドラッグ中に浮かせて表示するプレビュー(DragOverlayの中身)
+type DragPreview =
+    | { kind: 'block'; blockId: string; width: number; height: number }
+    | { kind: 'palette'; blockType: BlockType };
+
 export default function EditorBlockDndContext({ children }: { children: React.ReactNode }) {
     const slides = useEditorStore((state) => state.slides);
     const activeSlideId = useEditorStore((state) => state.activeSlideId);
     const moveBlock = useEditorStore((state) => state.moveBlock);
     const spawnBlockAt = useEditorStore((state) => state.spawnBlockAt);
-    const removeBlock = useEditorStore((state) => state.removeBlock);
     const setSelectedBlockId = useEditorStore((state) => state.setSelectedBlockId);
 
     const blocks = slides.find((s) => s.id === activeSlideId)?.blocks ?? [];
 
-    const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null);
-    const [overlaySize, setOverlaySize] = useState<{ width: number; height: number } | null>(null);
-    // BlockSelectorからのドラッグで新規生成したブロックのID(通常ブロックのドラッグではnull)
-    const spawnedBlockIdRef = useRef<string | null>(null);
-    // 直前にコンテナ間移動を適用した(containerId, index)を覚えておき、同じ移動を無駄に繰り返さないようにする。
-    // また、何らかの理由でホバー先の判定が高頻度に往復し続けるケースに備えて、
-    // 1回のドラッグ操作あたりの移動回数に上限を設け、無限ループ的な状態更新の連鎖を防ぐ
-    const lastAppliedMoveRef = useRef<{ containerId: string; index: number } | null>(null);
-    const moveCountRef = useRef(0);
-    const MAX_MOVES_PER_DRAG = 5000;
-
-    // onDragOverはポインタが動くたびに(ブラウザのイベント頻度次第で1フレームに何度も)発火しうる。
-    // 呼ばれるたびに同期的にmoveBlockを実行すると、コンテナ境界付近での高頻度なホバー切り替え時に
-    // Reactの再レンダーが追いつかないまま状態更新が連鎖し、「Maximum update depth exceeded」につながる。
-    // そのため実際の移動は requestAnimationFrame で1フレームにつき最大1回にまとめて適用する
-    const rafIdRef = useRef<number | null>(null);
-    const pendingMoveRef = useRef<{ activeBlockId: string; containerId: string; index: number } | null>(null);
-
-    const cancelPendingMove = () => {
-        if (rafIdRef.current !== null) {
-            cancelAnimationFrame(rafIdRef.current);
-            rafIdRef.current = null;
-        }
-        pendingMoveRef.current = null;
-    };
-
-    const flushPendingMove = () => {
-        rafIdRef.current = null;
-        const pending = pendingMoveRef.current;
-        pendingMoveRef.current = null;
-        if (!pending) return;
-
-        const last = lastAppliedMoveRef.current;
-        if (last && last.containerId === pending.containerId && last.index === pending.index) return;
-        if (moveCountRef.current >= MAX_MOVES_PER_DRAG) return;
-
-        moveBlock(pending.activeBlockId, pending.containerId, pending.index);
-        lastAppliedMoveRef.current = { containerId: pending.containerId, index: pending.index };
-        moveCountRef.current += 1;
-    };
+    const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
+    const [indicator, setIndicator] = useState<Indicator | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -123,92 +154,61 @@ export default function EditorBlockDndContext({ children }: { children: React.Re
         const { active } = event;
         const data = active.data.current;
 
-        cancelPendingMove();
-        lastAppliedMoveRef.current = null;
-        moveCountRef.current = 0;
-
         if (isPaletteDragData(data)) {
-            const defaultParams = BLOCK_DEFAULTS[data.blockType] ?? {};
-            // その場では位置を確定させず、末尾に生成してから dragOver/dragEnd で本来の位置に移動させる。
-            // パレットからの新規配置は、この後リアルタイムに実データが動く様子自体がプレビューになるため
-            // DragOverlayは出さない(元々サイズを持たないボタンなので固定サイズのプレビューにする意味が薄い)
-            const blockId = spawnBlockAt(data.blockType, defaultParams, ROOT_CONTAINER_ID, getCurrentBlocks().length);
-            spawnedBlockIdRef.current = blockId;
-            setDraggedBlockId(null);
-            setOverlaySize(null);
+            setDragPreview({ kind: 'palette', blockType: data.blockType });
             return;
         }
 
-        spawnedBlockIdRef.current = null;
         const blockId = active.id as string;
-        setDraggedBlockId(blockId);
-
         // dnd-kitのactive.rect.current.initialはこの時点ではまだ計測されていないことがあるため、
-        // 実DOMのサイズを直接測ってドラッグ中に表示するプレビューのサイズを固定する
-        const node = document.querySelector<HTMLElement>(`[data-block-id="${blockId}"]`);
+        // 実DOMのサイズを直接測ってドラッグ中に表示するプレビューのサイズを固定する。
+        // SlideNavigatorのミニプレビューも(2列ブロックの中身に限り)同じSortableBlockItemを再利用しており
+        // 同じdata-block-idを持つ縮小コピーが存在するため、実キャンバス内に限定して探す
+        const node = document.querySelector<HTMLElement>(`[data-slide-canvas] [data-block-id="${blockId}"]`);
         const rect = node?.getBoundingClientRect();
-        setOverlaySize(rect ? { width: rect.width, height: rect.height } : null);
+        setDragPreview({ kind: 'block', blockId, width: rect?.width ?? 0, height: rect?.height ?? 0 });
     };
 
+    // ドラッグ中は実データを一切動かさず、挿入位置のインジケーターだけを更新する
     const handleDragOver = (event: DragOverEvent) => {
-        const activeBlockId = spawnedBlockIdRef.current ?? (event.active.id as string);
-        const currentBlocks = getCurrentBlocks();
-
-        const target = resolveOverTarget(event.over, currentBlocks);
-        if (!target) return;
-
-        const activeContainerId = findContainerIdForBlock(currentBlocks, activeBlockId);
-        if (!activeContainerId || activeContainerId === target.containerId) return;
-
-        // 他コンテナへのホバー: 実データの移動(リアルタイムに詰めて表示する処理)は
-        // 次の描画フレームでまとめて適用する(flushPendingMove参照)
-        pendingMoveRef.current = { activeBlockId, containerId: target.containerId, index: target.index };
-        if (rafIdRef.current === null) {
-            rafIdRef.current = requestAnimationFrame(flushPendingMove);
-        }
+        const resolved = resolveDrag(event.active, event.over, getCurrentBlocks());
+        setIndicator(resolved?.indicator ?? null);
     };
 
+    // 実データの移動/新規挿入は、ドロップされた瞬間に一度だけ行う
     const handleDragEnd = (event: DragEndEvent) => {
-        cancelPendingMove();
-        const activeBlockId = spawnedBlockIdRef.current ?? (event.active.id as string);
-        const currentBlocks = getCurrentBlocks();
-        const target = resolveOverTarget(event.over, currentBlocks);
+        const { active, over } = event;
+        const data = active.data.current;
+        const resolved = resolveDrag(active, over, getCurrentBlocks());
 
-        if (!target) {
-            // 有効なドロップ先が無いままリリースされた場合、パレットからの新規生成分は取り消す
-            if (spawnedBlockIdRef.current) {
-                removeBlock(spawnedBlockIdRef.current);
-            }
-        } else {
-            // 同一コンテナ内での最終的な並び順を確定する(別コンテナへはdragOverで移動済み)
-            moveBlock(activeBlockId, target.containerId, target.index);
-            if (spawnedBlockIdRef.current) {
-                setSelectedBlockId(spawnedBlockIdRef.current);
+        if (resolved) {
+            if (isPaletteDragData(data)) {
+                const defaultParams = BLOCK_DEFAULTS[data.blockType] ?? {};
+                const newBlockId = spawnBlockAt(data.blockType, defaultParams, resolved.containerId, resolved.index);
+                setSelectedBlockId(newBlockId);
+            } else {
+                moveBlock(active.id as string, resolved.containerId, resolved.index);
             }
         }
+        // 有効なドロップ先が無い場合は何もしない。実データはまだ動いていないので後始末は不要
 
-        spawnedBlockIdRef.current = null;
-        setDraggedBlockId(null);
-        setOverlaySize(null);
+        setDragPreview(null);
+        setIndicator(null);
     };
 
     const handleDragCancel = () => {
-        cancelPendingMove();
-        if (spawnedBlockIdRef.current) {
-            removeBlock(spawnedBlockIdRef.current);
-        }
-        spawnedBlockIdRef.current = null;
-        setDraggedBlockId(null);
-        setOverlaySize(null);
+        setDragPreview(null);
+        setIndicator(null);
     };
 
-    const draggedBlock = draggedBlockId ? findBlockById(blocks, draggedBlockId) : undefined;
+    const draggedBlock = dragPreview?.kind === 'block' ? findBlockById(blocks, dragPreview.blockId) : undefined;
+    const paletteItem = dragPreview?.kind === 'palette' ? PALETTE_ITEMS_BY_TYPE[dragPreview.blockType] : undefined;
 
     return (
         <DndContext
             id="editor-block-dnd-context"
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={collisionDetection}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
@@ -216,13 +216,38 @@ export default function EditorBlockDndContext({ children }: { children: React.Re
         >
             {children}
 
+            {indicator?.kind === 'line' && (
+                <div
+                    style={{ position: 'fixed', top: indicator.top - 1, left: indicator.left, width: indicator.width }}
+                    className="h-[3px] bg-blue-500 rounded-full pointer-events-none z-[60]"
+                />
+            )}
+            {indicator?.kind === 'empty' && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: indicator.top,
+                        left: indicator.left,
+                        width: indicator.width,
+                        height: indicator.height,
+                    }}
+                    className="border-2 border-blue-400 bg-blue-50/40 rounded-lg pointer-events-none z-[60]"
+                />
+            )}
+
             <DragOverlay dropAnimation={{ duration: 200, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
-                {draggedBlock && overlaySize ? (
+                {dragPreview?.kind === 'block' && draggedBlock ? (
                     <div
-                        style={{ width: overlaySize.width, height: overlaySize.height }}
+                        style={{ width: dragPreview.width, height: dragPreview.height }}
                         className="pointer-events-none overflow-hidden rounded-lg border-2 border-blue-400 bg-white p-4 shadow-xl"
                     >
                         <Block block={draggedBlock} />
+                    </div>
+                ) : null}
+                {dragPreview?.kind === 'palette' && paletteItem ? (
+                    <div className="pointer-events-none flex items-center gap-2 rounded-lg border-2 border-blue-400 bg-white px-3 py-2 text-sm text-gray-700 shadow-xl">
+                        {paletteItem.icon && <paletteItem.icon className="w-4 h-4" />}
+                        {paletteItem.label}
                     </div>
                 ) : null}
             </DragOverlay>
