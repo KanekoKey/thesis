@@ -25,14 +25,15 @@ export default function SortableBlockItem({ block }: { block: BlockData }) {
         transform: CSS.Transform.toString(transform),
         transition,
         zIndex: isDragging ? 50 : 1,
-        opacity: isDragging ? 0.5 : 1,
+        opacity: isDragging ? 0.4 : 1,
     };
 
     return (
         <div
             ref={setNodeRef}
+            data-block-id={block.id}
             style={style}
-            className={`relative p-4 rounded-lg border-2 transition-colors cursor-pointer bg-white ${
+            className={`group relative p-4 rounded-lg border-2 transition-colors cursor-pointer bg-white ${
                 isSelected ? 'border-blue-500 bg-blue-50/30' : 'border-transparent hover:border-gray-200'
             }`}
             onClick={(e) => {
@@ -40,15 +41,16 @@ export default function SortableBlockItem({ block }: { block: BlockData }) {
                 setSelectedBlockId(block.id);
             }}
         >
-            {isSelected && (
-                <div
-                    {...attributes}
-                    {...listeners}
-                    className="absolute -top-3 -left-3 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-sm cursor-grab active:cursor-grabbing hover:scale-110 transition-transform"
-                >
-                    <span className="text-xs">✥</span>
-                </div>
-            )}
+            {/* ドラッグハンドル: ホバー中、または選択中に表示する(Notionに倣い選択なしでも掴めるように) */}
+            <div
+                {...attributes}
+                {...listeners}
+                className={`absolute -top-3 -left-3 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-sm cursor-grab active:cursor-grabbing hover:scale-110 transition-opacity select-none touch-none ${
+                    isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                }`}
+            >
+                <span className="text-xs">✥</span>
+            </div>
             <Block block={block} />
         </div>
     );

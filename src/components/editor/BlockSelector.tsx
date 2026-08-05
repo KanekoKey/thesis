@@ -1,34 +1,45 @@
 'use client';
 
+import { useDraggable } from '@dnd-kit/core';
 import { Rnd } from 'react-rnd';
 import { useEditorStore } from '@/stores/useEditorStore';
 import type { BlockType } from '@/types/block';
 import { BLOCK_DEFAULTS } from '@/components/blocks/defaults';
 import { STATIC_ITEMS, DYNAMIC_ITEMS, type BlockItem } from '@/components/blocks/blockItems';
+import type { PaletteDragData } from './EditorBlockDndContext';
 
 // --- BlockSelector | コンポーネント ---
-const BUTTON_CLASS = "p-2 border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 text-left text-sm text-gray-700 flex items-center gap-2 transition-colors w-full";
+const BUTTON_CLASS = "p-2 border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 text-left text-sm text-gray-700 flex items-center gap-2 transition-colors w-full cursor-grab active:cursor-grabbing select-none touch-none";
 
-export default function BlockSelector() {
-    const addBlock = useEditorStore((state) => state.addBlock);
+// クリックでの即時追加と、キャンバスへのドラッグ配置の両方に対応するボタン
+function PaletteButton({ item, onClick }: { item: BlockItem; onClick: () => void }) {
+    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+        id: `palette:${item.type}`,
+        data: { source: 'palette', blockType: item.type } satisfies PaletteDragData,
+    });
 
-    // ブロック追加のハンドラー
-    const handleAddBlock = (type: BlockType) => {
-        const defaultParams = BLOCK_DEFAULTS[type] || {};
-        addBlock(type, defaultParams);
-    };
-
-    // ボタンを生成するヘルパー関数
-    const renderButton = (item: BlockItem) => (
+    return (
         <button
-            key={item.type}
-            onClick={() => handleAddBlock(item.type)}
-            className={BUTTON_CLASS}
+            ref={setNodeRef}
+            onClick={onClick}
+            className={`${BUTTON_CLASS} ${isDragging ? 'opacity-40' : ''}`}
+            {...attributes}
+            {...listeners}
         >
             {item.icon && <item.icon className="w-4 h-4" />}
             {item.label}
         </button>
     );
+}
+
+export default function BlockSelector() {
+    const addBlock = useEditorStore((state) => state.addBlock);
+
+    // ブロック追加のハンドラー(クリック時)
+    const handleAddBlock = (type: BlockType) => {
+        const defaultParams = BLOCK_DEFAULTS[type] || {};
+        addBlock(type, defaultParams);
+    };
 
     return (
         <Rnd
@@ -49,10 +60,14 @@ export default function BlockSelector() {
                 {/* ブロック選択の中身 */}
                 <div className="p-3 flex flex-col gap-2 overflow-y-auto">
                     <div className="text-xs font-bold text-gray-400 mb-1">静的ブロック</div>
-                    {STATIC_ITEMS.map(renderButton)}
+                    {STATIC_ITEMS.map((item) => (
+                        <PaletteButton key={item.type} item={item} onClick={() => handleAddBlock(item.type)} />
+                    ))}
 
                     <div className="text-xs font-bold text-gray-400 mt-2 mb-1">動的ブロック</div>
-                    {DYNAMIC_ITEMS.map(renderButton)}
+                    {DYNAMIC_ITEMS.map((item) => (
+                        <PaletteButton key={item.type} item={item} onClick={() => handleAddBlock(item.type)} />
+                    ))}
                 </div>
             </div>
         </Rnd>
