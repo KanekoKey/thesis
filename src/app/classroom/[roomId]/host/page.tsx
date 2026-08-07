@@ -40,6 +40,32 @@ export default function ClassroomHostPage({ params }: { params: Promise<{ roomId
   const [activeIndex, setActiveIndex] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
 
+  // --- フィルムストリップのドラッグスクロール ---
+  const filmstripRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const didDragRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartScrollLeftRef = useRef(0);
+
+  const handleFilmstripMouseDown = (e: React.MouseEvent) => {
+    if (!filmstripRef.current) return;
+    isDraggingRef.current = true;
+    didDragRef.current = false;
+    dragStartXRef.current = e.pageX;
+    dragStartScrollLeftRef.current = filmstripRef.current.scrollLeft;
+  };
+
+  const handleFilmstripMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current || !filmstripRef.current) return;
+    const delta = e.pageX - dragStartXRef.current;
+    if (Math.abs(delta) > 5) didDragRef.current = true;
+    filmstripRef.current.scrollLeft = dragStartScrollLeftRef.current - delta;
+  };
+
+  const stopFilmstripDrag = () => {
+    isDraggingRef.current = false;
+  };
+
   // --- WebSocket接続 ---
   useEffect(() => {
     const ws = new WebSocket(WS_URL);
@@ -171,13 +197,24 @@ export default function ClassroomHostPage({ params }: { params: Promise<{ roomId
         </aside>
       </div>
 
-      {/* --- フィルムストリップ: クリックでスライド移動 --- */}
-      <div className="shrink-0 bg-white border-t border-gray-200 px-4 py-3 overflow-x-auto">
+      {/* --- フィルムストリップ: ドラッグでスクロール、クリックでスライド移動 --- */}
+      <div
+        ref={filmstripRef}
+        onMouseDown={handleFilmstripMouseDown}
+        onMouseMove={handleFilmstripMouseMove}
+        onMouseUp={stopFilmstripDrag}
+        onMouseLeave={stopFilmstripDrag}
+        onDragStart={(e) => e.preventDefault()}
+        className="shrink-0 bg-white border-t border-gray-200 px-4 py-3 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none"
+      >
         <div className="flex gap-3 w-max">
           {slides.map((slide, index) => (
             <button
               key={slide.id}
-              onClick={() => goToSlide(index)}
+              onClick={() => {
+                if (didDragRef.current) return;
+                goToSlide(index);
+              }}
               className={`relative shrink-0 rounded-lg border-2 overflow-hidden transition-colors ${
                 index === activeIndex
                   ? 'border-blue-500 ring-2 ring-blue-200/50'
