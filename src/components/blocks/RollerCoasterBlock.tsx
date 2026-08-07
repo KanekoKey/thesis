@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { RollerCoasterBlockData, RollerCoasterLayout, BlockPermission } from '@/types/block';
 import { useClassroomSync } from '@/contexts/ClassroomSyncContext';
 import BlockPermissionBadge, { type PermissionMode } from '@/components/classroom/BlockPermissionBadge';
@@ -63,11 +63,23 @@ export default function RollerCoasterBlock({
     const canOperate = !isShared || isController;
 
     // --- RollerCoasterBlock｜状態管理 ---
-    // コースターの現在位置 (0.0 = スタート, 1.0 = ゴール)。sharedモードでは同期状態がそのまま真値になる
+    // コースターの現在位置 (0.0 = スタート, 1.0 = ゴール)。
+    // 操作している本人は「ローカルで動かしているのと同じ」体感になるよう、常にローカルstateを真値として
+    // 即座に反映する(サーバへの送信・受信の往復を待たない)。非操作者だけサーバの同期値をそのまま見る。
     const [localPositionX, setLocalPositionX] = useState(0);
-    const positionX = isShared
-        ? (sync!.blockStates[id]?.positionX as number | undefined) ?? 0
-        : localPositionX;
+    const syncedPositionX = (sync?.blockStates[id]?.positionX as number | undefined) ?? 0;
+    const showsLocal = !isShared || canOperate;
+    const positionX = showsLocal ? localPositionX : syncedPositionX;
+
+    // 操作権を得た瞬間(individual→shared、非操作者→操作者になった時など)は、
+    // サーバの現在値からローカルstateを初期化しておく(いきなり0に戻って見えないように)
+    useEffect(() => {
+        if (showsLocal) {
+            setLocalPositionX(syncedPositionX);
+        }
+        // 操作権が変わったタイミングでだけ同期したいので、依存はshowsLocalのみに絞る
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showsLocal]);
 
     // --- RollerCoasterBlock｜入力値のバリデーション ---
     if (isInvalidHeight || isInvalidPeakHeight || mass <= 0 || gravity < 0 || initialVelocity < 0) {
@@ -351,36 +363,28 @@ export default function RollerCoasterBlock({
                                 max="1"
                                 step="0.001"
                                 value={positionX}
-                                disabled={!canOperate}
-                                onChange={(e) => {  // スライダーの値を更新する際、エネルギー不足になる位置を超えないように制限
+                                // disabled属性は使わない(ブラウザ標準のグレー表示がTailwindのクラス指定と無関係に
+                                // 付いてしまうため)。権限が無い場合はonChangeで無視するだけにし、見た目は変えない
+                                onChange={(e) => {
+                                    if (!canOperate) return;
+                                    // スライダーの値を更新する際、エネルギー不足になる位置を超えないように制限
                                     const newP = Math.min(parseFloat(e.target.value), maxPosition);
+                                    setLocalPositionX(newP); // 自分の操作は常に即座にローカル反映
                                     if (isShared) {
+                                        // 他の閲覧者に伝えるためにサーバへも送るが、自分の表示はローカルstateのまま変えない
                                         sync!.send('blockStateUpdate', { blockId: id, state: { positionX: newP } });
-                                    } else {
-                                        setLocalPositionX(newP);
                                     }
                                 }}
-                                className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                             />
-                            {isShared && (
-                                <div className="flex items-center justify-between text-[11px] text-gray-500">
-                                    <span>
-                                        {isController
-                                            ? 'あなたが操作中'
-                                            : effectiveControllerRule === 'teacher-only'
-                                                ? '教員が操作中'
-                                                : controllerConnectionId
-                                                    ? `${sync!.roster.find((r) => r.connectionId === controllerConnectionId)?.displayName ?? '生徒'}さんが操作中`
-                                                    : '教員の指名を待っています'}
-                                    </span>
-                                    {isController && sync && !sync.isHost && (
-                                        <button
-                                            onClick={() => sync.send('releaseControl', { blockId: id })}
-                                            className="text-blue-500 hover:underline"
-                                        >
-                                            操作を終える
-                                        </button>
-                                    )}
+                            {isShared && isController && sync && !sync.isHost && (
+                                <div className="flex justify-end text-[11px]">
+                                    <button
+                                        onClick={() => sync.send('releaseControl', { blockId: id })}
+                                        className="text-blue-500 hover:underline"
+                                    >
+                                        操作を終える
+                                    </button>
                                 </div>
                             )}
                         </div>

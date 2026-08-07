@@ -52,13 +52,14 @@ export const handler = async (event: APIGatewayProxyWebsocketEventV2) => {
     ExpressionAttributeValues: { ":state": state, ":now": Date.now() },
   }));
 
+  // 操作者自身の画面も、この値をそのまま真値として表示している(ローカルでは持たない)ため、
+  // 送信者を除外せず全員に配信する。除外すると操作者本人の画面だけが更新されなくなる。
   await broadcastToRoom({
     docClient,
     connectionsTableName: CONNECTIONS_TABLE_NAME,
     apigwClient,
     roomId,
     payload: { type: "blockStateChanged", blockId, state },
-    excludeConnectionId: connectionId,
   });
 
   return { statusCode: 200, body: "OK" };
