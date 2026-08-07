@@ -210,8 +210,18 @@ export default function RollerCoasterBlock({
     // 文字サイズ等はcqw単位で自身の描画幅に応じて縮小するため、
     // ビューポート基準のブレークポイントではなく自身の描画幅を基準にするコンテナクエリ(@container)を使う
     // (縦/横の並び自体は幅による自動切り替えではなく、layoutプロパティで教員が明示的に指定する)
+    // classroom内(sync !== null)でのみ、動的ブロックであることが3色で分かるように枠線を変える。
+    // 個別ブロックの汎用ハイライトはしない(エディタ等sync === nullのときは従来通りの無地の枠)。
+    const stateBorderClass = sync === null
+        ? 'border-gray-100'
+        : !isShared
+            ? 'border-purple-300'  // 動的ブロックである印(individual)
+            : canOperate
+                ? 'border-emerald-400' // 操作可能
+                : 'border-rose-300';   // 操作不可
+
     return (
-        <div className="@container relative flex flex-col p-4 bg-white border-2 border-gray-100 rounded-2xl shadow-sm gap-4">
+        <div className={`@container relative flex flex-col p-4 bg-white border-2 ${stateBorderClass} rounded-2xl shadow-sm gap-4`}>
 
             {interactive && sync && sync.isHost && (
                 <BlockPermissionBadge

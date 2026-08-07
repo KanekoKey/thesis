@@ -51,7 +51,7 @@ export default function SortableBlockItem({ block }: { block: BlockData }) {
             >
                 <span className="text-xs">✥</span>
             </div>
-            <Block block={block} />
+            <Block block={block} editable />
         </div>
     );
 }
