@@ -27,6 +27,7 @@ export const defaultRollerCoasterParams: Required<RollerCoasterBlockData['parame
 type RollerCoasterBlockProps = RollerCoasterBlockData['parameters'] & {
     id: string;
     permission?: BlockPermission;
+    interactive?: boolean;
 };
 
 // --- RollerCoasterBlock | コンポーネント ---
@@ -40,6 +41,7 @@ export default function RollerCoasterBlock({
     peakHeight = defaultRollerCoasterParams.peakHeight,
     initialVelocity = defaultRollerCoasterParams.initialVelocity,
     permission,
+    interactive = true,
 }: RollerCoasterBlockProps) {
     const isInvalidHeight = trackShape === 'loop' ? initialHeight < 0 : initialHeight <= 0;
     const isInvalidPeakHeight = trackShape === 'loop' && peakHeight <= 0;
@@ -211,7 +213,7 @@ export default function RollerCoasterBlock({
     return (
         <div className="@container relative flex flex-col p-4 bg-white border-2 border-gray-100 rounded-2xl shadow-sm gap-4">
 
-            {sync && sync.isHost && (
+            {interactive && sync && sync.isHost && (
                 <BlockPermissionBadge
                     mode={
                         effectiveSync === 'shared'

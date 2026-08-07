@@ -19,7 +19,8 @@ export default function ScaledSlide({ slide, width }: { slide: SlideData; width:
       >
         {slide.blocks.map((block) => (
           <div key={block.id} className="relative p-4">
-            <Block block={block} />
+            {/* サムネイル表示なので操作UI(権限バッジ等)は出さない。button-in-buttonのHTML違反も避けられる */}
+            <Block block={block} interactive={false} />
           </div>
         ))}
       </div>
