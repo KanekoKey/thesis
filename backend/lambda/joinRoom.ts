@@ -1,8 +1,8 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, UpdateCommand, GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, UpdateCommand, GetCommand, QueryCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyWebsocketEventV2 } from "aws-lambda";
 import { getManagementApiClient, sendToConnection, broadcastRoster } from "./lib/broadcast";
-import { getActiveHostConnectionId } from "./lib/hostAuth";
+import { getActiveHostConnectionId, nameClaimSk, isBlockSessionSk } from "./lib/hostAuth";
 
 const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const CONNECTIONS_TABLE_NAME = process.env.TABLE_NAME!;
@@ -32,6 +32,27 @@ export const handler = async (event: APIGatewayProxyWebsocketEventV2) => {
     }
   }
 
+  const apigwClient = getManagementApiClient(event);
+
+  // 生徒の表示名は、教員がロスターパネルで見分けられるよう部屋内で一意にする(重複は拒否)。
+  // ConnectionsTableのGSIクエリ(結果整合性)ではなく、RoomSessionTableへの条件付きPut
+  // (強い整合性を持つ原子的な操作)で確保することで、ほぼ同時の参加でもすり抜けないようにする。
+  if (role === "guest" && displayName) {
+    try {
+      await docClient.send(new PutCommand({
+        TableName: ROOM_SESSION_TABLE_NAME,
+        Item: { roomId, sk: nameClaimSk(displayName), connectionId },
+        ConditionExpression: "attribute_not_exists(sk)",
+      }));
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === "ConditionalCheckFailedException") {
+        await sendToConnection(apigwClient, connectionId, { type: "joinRejected", reason: "duplicate-name" });
+        return { statusCode: 200, body: "Rejected: duplicate name" };
+      }
+      throw error;
+    }
+  }
+
   const names: Record<string, string> = { "#role": "role" };
   const values: Record<string, unknown> = { ":r": roomId, ":role": role, ":c": Date.now() };
   let updateExpr = "SET roomId = :r, #role = :role, connectedAt = :c";
@@ -46,8 +67,6 @@ export const handler = async (event: APIGatewayProxyWebsocketEventV2) => {
     ExpressionAttributeNames: names,
     ExpressionAttributeValues: values,
   }));
-
-  const apigwClient = getManagementApiClient(event);
 
   if (role === "host") {
     // テイクオーバー: 直近に接続してきたhostToken保有者だけを正規hostとして扱う
@@ -72,7 +91,7 @@ export const handler = async (event: APIGatewayProxyWebsocketEventV2) => {
     ExpressionAttributeValues: { ":r": roomId },
   }));
   const blocks = (sessionRows.Items || [])
-    .filter((item) => item.sk !== "__room__")
+    .filter((item) => isBlockSessionSk(item.sk))
     .map((item) => ({
       blockId: item.sk,
       controllerRule: item.controllerRule,

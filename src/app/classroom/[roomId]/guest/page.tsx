@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, useEffect, use } from 'react';
 import Block from '@/components/blocks/Block';
 import { useRoom } from '@/hooks/useRoom';
 import { useDeck } from '@/hooks/useDeck';
@@ -17,9 +17,10 @@ export default function ClassroomGuestPage({ params }: { params: Promise<{ roomI
   // ニックネーム入力(本人確認なし、ロスターパネル表示用のラベルにすぎない)
   const [nameInput, setNameInput] = useState('');
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
 
   const {
-    activeIndex, myConnectionId, roster, blockSync, blockStates, send,
+    activeIndex, myConnectionId, joinRejectedReason, roster, blockSync, blockStates, send,
   } = useClassroomConnection({
     roomId,
     role: 'guest',
@@ -27,7 +28,23 @@ export default function ClassroomGuestPage({ params }: { params: Promise<{ roomI
     enabled: !!displayName, // ニックネーム確定前は接続しない
   });
 
-  if (!displayName) {
+  // サーバに名前の重複を拒否されたら、参加フォームに戻してエラーを表示する
+  useEffect(() => {
+    if (!joinRejectedReason) return;
+    setJoinError(
+      joinRejectedReason === 'duplicate-name'
+        ? 'この名前は既に使われています。別の名前を入力してください。'
+        : '参加できませんでした。もう一度お試しください。'
+    );
+    setDisplayName(null);
+  }, [joinRejectedReason]);
+
+  // displayNameを送信しても、サーバから joined が返って myConnectionId が確定するまでは
+  // 参加成功とみなさない(一瞬教室画面に遷移してから追い出される、を防ぐため)
+  const hasJoined = !!displayName && !!myConnectionId;
+  const isJoining = !!displayName && !myConnectionId && !joinRejectedReason;
+
+  if (!hasJoined) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
         <form
@@ -39,24 +56,29 @@ export default function ClassroomGuestPage({ params }: { params: Promise<{ roomI
           className="w-full max-w-sm bg-white p-8 rounded-2xl shadow-lg border border-gray-100 flex flex-col gap-4"
         >
           <h1 className="text-lg font-bold text-gray-800">授業に参加</h1>
-          <p className="text-sm text-gray-400">
-            表示名を入力してください。本人確認は行われません。
-          </p>
+          <p className="text-xs text-gray-400 font-mono">クラスコード: {roomId}</p>
           <input
             type="text"
             value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            placeholder="例: たなか"
+            onChange={(e) => {
+              setNameInput(e.target.value);
+              setJoinError(null);
+            }}
+            placeholder="名前を入力"
             autoFocus
             maxLength={20}
-            className="border border-gray-200 rounded-lg px-4 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-400"
+            disabled={isJoining}
+            className="border border-gray-200 rounded-lg px-4 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:bg-gray-50"
           />
+          {joinError && (
+            <p className="text-sm text-red-500">{joinError}</p>
+          )}
           <button
             type="submit"
-            disabled={!nameInput.trim()}
+            disabled={!nameInput.trim() || isJoining}
             className="px-4 py-2 rounded-lg bg-red-500 text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-red-600 transition"
           >
-            参加する
+            {isJoining ? '参加中...' : '参加する'}
           </button>
         </form>
       </div>

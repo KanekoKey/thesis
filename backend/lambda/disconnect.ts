@@ -2,7 +2,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, DeleteCommand, UpdateCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyWebsocketEventV2 } from "aws-lambda";
 import { getManagementApiClient, broadcastToRoom, broadcastRoster } from "./lib/broadcast";
-import { getActiveHostConnectionId } from "./lib/hostAuth";
+import { getActiveHostConnectionId, nameClaimSk } from "./lib/hostAuth";
 
 const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const CONNECTIONS_TABLE_NAME = process.env.TABLE_NAME!;
@@ -18,12 +18,21 @@ export const handler = async (event: APIGatewayProxyWebsocketEventV2) => {
     ReturnValues: "ALL_OLD",
   }));
   const roomId = deleted.Attributes?.roomId as string | undefined;
+  const displayName = deleted.Attributes?.displayName as string | undefined;
 
   if (!roomId) {
     return { statusCode: 200, body: "Disconnected" };
   }
 
   const apigwClient = getManagementApiClient(event);
+
+  // 表示名の予約を解放する(再入室・他の生徒が同じ名前を使えるようにする)
+  if (displayName) {
+    await docClient.send(new DeleteCommand({
+      TableName: ROOM_SESSION_TABLE_NAME,
+      Key: { roomId, sk: nameClaimSk(displayName) },
+    }));
+  }
 
   // hostが切断した場合は「正規host不在」の状態に戻す
   const activeHostConnectionId = await getActiveHostConnectionId(docClient, ROOM_SESSION_TABLE_NAME, roomId);

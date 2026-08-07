@@ -24,6 +24,7 @@ export function useClassroomConnection({ roomId, role, hostToken, displayName, e
   const [myConnectionId, setMyConnectionId] = useState<string | null>(null);
   const [resolvedRole, setResolvedRole] = useState<'host' | 'guest' | null>(null);
   const [isTakenOver, setIsTakenOver] = useState(false);
+  const [joinRejectedReason, setJoinRejectedReason] = useState<string | null>(null);
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [blockSync, setBlockSync] = useState<Record<string, BlockSyncInfo>>({});
   const [blockStates, setBlockStates] = useState<Record<string, Record<string, unknown>>>({});
@@ -31,11 +32,11 @@ export function useClassroomConnection({ roomId, role, hostToken, displayName, e
   useEffect(() => {
     if (!enabled) return;
 
-    setWsStatus('connecting');
     const ws = new WebSocket(WS_URL);
 
     ws.onopen = () => {
       setWsStatus('open');
+      setJoinRejectedReason(null); // 新しい接続試行なので、前回の拒否理由をリセットする
       ws.send(JSON.stringify({
         action: 'joinRoom',
         roomId,
@@ -92,6 +93,9 @@ export function useClassroomConnection({ roomId, role, hostToken, displayName, e
         case 'hostTakenOver':
           setIsTakenOver(true);
           break;
+        case 'joinRejected':
+          setJoinRejectedReason(data.reason ?? 'unknown');
+          break;
         case 'rosterUpdate':
           setRoster(data.participants ?? []);
           break;
@@ -119,7 +123,6 @@ export function useClassroomConnection({ roomId, role, hostToken, displayName, e
 
     wsRef.current = ws;
     return () => ws.close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, role, hostToken, displayName, enabled]);
 
   const send = useCallback((action: string, payload: Record<string, unknown> = {}) => {
@@ -135,6 +138,7 @@ export function useClassroomConnection({ roomId, role, hostToken, displayName, e
     myConnectionId,
     resolvedRole,
     isTakenOver,
+    joinRejectedReason,
     roster,
     blockSync,
     blockStates,
