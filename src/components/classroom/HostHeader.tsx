@@ -6,9 +6,10 @@ interface HostHeaderProps {
   slideCount: number;
   onPrev: () => void;
   onNext: () => void;
+  disabled?: boolean;
 }
 
-export default function HostHeader({ roomId, activeIndex, slideCount, onPrev, onNext }: HostHeaderProps) {
+export default function HostHeader({ roomId, activeIndex, slideCount, onPrev, onNext, disabled }: HostHeaderProps) {
   return (
     <header className="shrink-0 flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shadow-sm">
       <div>
@@ -22,14 +23,14 @@ export default function HostHeader({ roomId, activeIndex, slideCount, onPrev, on
         </span>
         <button
           onClick={onPrev}
-          disabled={activeIndex === 0}
+          disabled={disabled || activeIndex === 0}
           className="px-4 py-2 rounded-full bg-white border border-gray-200 shadow-sm text-gray-700 font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition"
         >
           ← 前へ
         </button>
         <button
           onClick={onNext}
-          disabled={activeIndex === slideCount - 1}
+          disabled={disabled || activeIndex === slideCount - 1}
           className="px-4 py-2 rounded-full bg-blue-600 text-white font-bold shadow-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 transition"
         >
           次へ →

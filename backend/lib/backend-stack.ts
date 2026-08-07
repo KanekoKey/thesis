@@ -90,7 +90,10 @@ export class BackendStack extends cdk.Stack {
 
     const changeBlockHandler = new lambda.NodejsFunction(this, 'ChangeBlockHandler', {
       entry: 'lambda/changeBlock.ts',
-      environment: { TABLE_NAME: connectionsTable.tableName },
+      environment: {
+        TABLE_NAME: connectionsTable.tableName,
+        ROOM_SESSION_TABLE_NAME: roomSessionTable.tableName, // 送信元が正規hostかの検証に使用
+      },
     });
 
     // 動的ブロックの操作許可・同期まわりの新規Lambda群
@@ -135,11 +138,13 @@ export class BackendStack extends cdk.Stack {
     connectionsTable.grantReadWriteData(connectHandler);
     connectionsTable.grantReadWriteData(disconnectHandler);
     connectionsTable.grantReadWriteData(joinRoomHandler);
-    connectionsTable.grantReadData(changeBlockHandler);
+    // 元々の実装も失効接続をDeleteしていたため read-write が必要(旧 grantReadData は権限不足だった)
+    connectionsTable.grantReadWriteData(changeBlockHandler);
 
     roomsTable.grantReadData(joinRoomHandler);
     roomSessionTable.grantReadWriteData(joinRoomHandler);
     roomSessionTable.grantReadWriteData(disconnectHandler);
+    roomSessionTable.grantReadData(changeBlockHandler);
 
     permissionHandlers.forEach((fn) => {
       connectionsTable.grantReadWriteData(fn); // ブロードキャスト先クエリ + 失効接続の削除
