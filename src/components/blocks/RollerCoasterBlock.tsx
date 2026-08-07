@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import type { RollerCoasterBlockData, RollerCoasterLayout } from '@/types/block';
+import type { RollerCoasterBlockData, RollerCoasterLayout, BlockPermission } from '@/types/block';
+import { useClassroomSync } from '@/contexts/ClassroomSyncContext';
+import BlockPermissionBadge, { type PermissionMode } from '@/components/classroom/BlockPermissionBadge';
 
 // これ未満の幅ではシミュレーション/数値パネルのレイアウトが崩れるため、
 // two-column内などで下回る場合は横スクロールさせる（TwoColumnBlockが参照）
@@ -22,8 +24,14 @@ export const defaultRollerCoasterParams: Required<RollerCoasterBlockData['parame
     initialVelocity: 0,
 };
 
+type RollerCoasterBlockProps = RollerCoasterBlockData['parameters'] & {
+    id: string;
+    permission?: BlockPermission;
+};
+
 // --- RollerCoasterBlock | コンポーネント ---
 export default function RollerCoasterBlock({
+    id,
     layout = defaultRollerCoasterParams.layout,
     trackShape = defaultRollerCoasterParams.trackShape,
     mass = defaultRollerCoasterParams.mass,
@@ -31,13 +39,33 @@ export default function RollerCoasterBlock({
     initialHeight = defaultRollerCoasterParams.initialHeight,
     peakHeight = defaultRollerCoasterParams.peakHeight,
     initialVelocity = defaultRollerCoasterParams.initialVelocity,
-}: RollerCoasterBlockData['parameters']) {
+    permission,
+}: RollerCoasterBlockProps) {
     const isInvalidHeight = trackShape === 'loop' ? initialHeight < 0 : initialHeight <= 0;
     const isInvalidPeakHeight = trackShape === 'loop' && peakHeight <= 0;
 
+    // --- RollerCoasterBlock｜操作許可・同期 ---
+    // Providerの外(エディタのプレビュー等)ではsyncがnullになり、常にindividual(ローカル完結)として振る舞う
+    const sync = useClassroomSync();
+    const live = sync?.blockSync[id];
+    const effectiveSync = live?.sync ?? permission?.sync ?? 'individual';
+    const effectiveControllerRule = live?.controllerRule ?? permission?.controllerRule ?? 'teacher-only';
+    const controllerConnectionId = live?.controllerConnectionId ?? null;
+    const isShared = sync !== null && effectiveSync === 'shared';
+
+    const isController = isShared && (
+        effectiveControllerRule === 'teacher-only'
+            ? sync!.isHost
+            : controllerConnectionId === sync!.myConnectionId
+    );
+    const canOperate = !isShared || isController;
+
     // --- RollerCoasterBlock｜状態管理 ---
-    // コースターの現在位置 (0.0 = スタート, 1.0 = ゴール)
-    const [positionX, setPositionX] = useState(0);
+    // コースターの現在位置 (0.0 = スタート, 1.0 = ゴール)。sharedモードでは同期状態がそのまま真値になる
+    const [localPositionX, setLocalPositionX] = useState(0);
+    const positionX = isShared
+        ? (sync!.blockStates[id]?.positionX as number | undefined) ?? 0
+        : localPositionX;
 
     // --- RollerCoasterBlock｜入力値のバリデーション ---
     if (isInvalidHeight || isInvalidPeakHeight || mass <= 0 || gravity < 0 || initialVelocity < 0) {
@@ -181,7 +209,28 @@ export default function RollerCoasterBlock({
     // ビューポート基準のブレークポイントではなく自身の描画幅を基準にするコンテナクエリ(@container)を使う
     // (縦/横の並び自体は幅による自動切り替えではなく、layoutプロパティで教員が明示的に指定する)
     return (
-        <div className="@container flex flex-col p-4 bg-white border-2 border-gray-100 rounded-2xl shadow-sm gap-4">
+        <div className="@container relative flex flex-col p-4 bg-white border-2 border-gray-100 rounded-2xl shadow-sm gap-4">
+
+            {sync && sync.isHost && (
+                <BlockPermissionBadge
+                    mode={
+                        effectiveSync === 'shared'
+                            ? { sync: 'shared', controllerRule: effectiveControllerRule }
+                            : { sync: 'individual' }
+                    }
+                    controllerConnectionId={controllerConnectionId}
+                    roster={sync.roster}
+                    onChangeMode={(mode: PermissionMode) => {
+                        sync.send('setBlockPermission', {
+                            blockId: id,
+                            sync: mode.sync,
+                            ...(mode.sync === 'shared' ? { controllerRule: mode.controllerRule } : {}),
+                        });
+                    }}
+                    onAssign={(connectionId) => sync.send('assignControl', { blockId: id, connectionId })}
+                    onRevoke={() => sync.send('revokeControl', { blockId: id })}
+                />
+            )}
 
             {/* メインレイアウト：シミュレーションと数値データの並び順はlayoutプロパティで切り替え */}
             <div className={`flex gap-4 ${layout === 'horizontal' ? 'flex-row' : 'flex-col'}`}>
@@ -290,12 +339,38 @@ export default function RollerCoasterBlock({
                                 max="1"
                                 step="0.001"
                                 value={positionX}
+                                disabled={!canOperate}
                                 onChange={(e) => {  // スライダーの値を更新する際、エネルギー不足になる位置を超えないように制限
-                                    const newP = parseFloat(e.target.value);
-                                    setPositionX(Math.min(newP, maxPosition));
+                                    const newP = Math.min(parseFloat(e.target.value), maxPosition);
+                                    if (isShared) {
+                                        sync!.send('blockStateUpdate', { blockId: id, state: { positionX: newP } });
+                                    } else {
+                                        setLocalPositionX(newP);
+                                    }
                                 }}
-                                className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600 disabled:opacity-40 disabled:cursor-not-allowed"
                             />
+                            {isShared && (
+                                <div className="flex items-center justify-between text-[11px] text-gray-500">
+                                    <span>
+                                        {isController
+                                            ? 'あなたが操作中'
+                                            : effectiveControllerRule === 'teacher-only'
+                                                ? '教員が操作中'
+                                                : controllerConnectionId
+                                                    ? `${sync!.roster.find((r) => r.connectionId === controllerConnectionId)?.displayName ?? '生徒'}さんが操作中`
+                                                    : '教員の指名を待っています'}
+                                    </span>
+                                    {isController && sync && !sync.isHost && (
+                                        <button
+                                            onClick={() => sync.send('releaseControl', { blockId: id })}
+                                            className="text-blue-500 hover:underline"
+                                        >
+                                            操作を終える
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

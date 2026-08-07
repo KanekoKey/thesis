@@ -23,7 +23,7 @@ export default function Block({ block }: Props) {
     case 'h3': return <H3Block {...block.parameters} />;
     case 'h4': return <H4Block {...block.parameters} />;
     case 'counter': return <CounterBlock {...block.parameters} />;
-    case 'roller-coaster': return <RollerCoasterBlock {...block.parameters} />;
+    case 'roller-coaster': return <RollerCoasterBlock id={block.id} permission={block.permission} {...block.parameters} />;
     case 'two-column': return <TwoColumnBlock id={block.id} {...block.parameters} />;
 
     default: return <ErrorBlock />;

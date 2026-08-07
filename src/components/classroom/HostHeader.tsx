@@ -1,5 +1,8 @@
 'use client';
 
+import type { WsStatus } from '@/hooks/useClassroomConnection';
+import SyncStatusIndicator from './SyncStatusIndicator';
+
 interface HostHeaderProps {
   roomId: string;
   activeIndex: number;
@@ -7,9 +10,10 @@ interface HostHeaderProps {
   onPrev: () => void;
   onNext: () => void;
   disabled?: boolean;
+  syncStatus: WsStatus;
 }
 
-export default function HostHeader({ roomId, activeIndex, slideCount, onPrev, onNext, disabled }: HostHeaderProps) {
+export default function HostHeader({ roomId, activeIndex, slideCount, onPrev, onNext, disabled, syncStatus }: HostHeaderProps) {
   return (
     <header className="shrink-0 flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shadow-sm">
       <div>
@@ -18,6 +22,7 @@ export default function HostHeader({ roomId, activeIndex, slideCount, onPrev, on
       </div>
 
       <div className="flex items-center gap-4">
+        <SyncStatusIndicator status={syncStatus} />
         <span className="text-gray-500 font-medium">
           スライド {activeIndex + 1} / {slideCount}
         </span>

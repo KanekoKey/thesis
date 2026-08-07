@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, use } from 'react';
 import Block from '@/components/blocks/Block';
 import { useRoom } from '@/hooks/useRoom';
 import { useDeck } from '@/hooks/useDeck';
-
-const WS_URL = 'wss://0ydmcdhzc8.execute-api.ap-northeast-1.amazonaws.com/prod/';
+import { useClassroomConnection } from '@/hooks/useClassroomConnection';
+import { ClassroomSyncProvider } from '@/contexts/ClassroomSyncContext';
 
 export default function ClassroomGuestPage({ params }: { params: Promise<{ roomId: string }> }) {
   const { roomId } = use(params);
@@ -14,33 +14,18 @@ export default function ClassroomGuestPage({ params }: { params: Promise<{ roomI
   const { deckId, isLoading: isRoomLoading, error: roomError } = useRoom(roomId);
   const { slides, isLoading: isDeckLoading, error: deckError } = useDeck(deckId ?? '');
 
-  const [activeIndex, setActiveIndex] = useState(0);
-
   // ニックネーム入力(本人確認なし、ロスターパネル表示用のラベルにすぎない)
   const [nameInput, setNameInput] = useState('');
   const [displayName, setDisplayName] = useState<string | null>(null);
 
-  // --- WebSocket接続とインデックス同期(ニックネーム確定後にのみ接続する) ---
-  useEffect(() => {
-    if (!displayName) return;
-
-    const ws = new WebSocket(WS_URL);
-
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ action: 'joinRoom', roomId, role: 'guest', displayName }));
-    };
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (typeof data.activeIndex === 'number') {
-        setActiveIndex(data.activeIndex);
-      }
-    };
-
-    return () => {
-      ws.close();
-    };
-  }, [roomId, displayName]);
+  const {
+    activeIndex, myConnectionId, roster, blockSync, blockStates, send,
+  } = useClassroomConnection({
+    roomId,
+    role: 'guest',
+    displayName,
+    enabled: !!displayName, // ニックネーム確定前は接続しない
+  });
 
   if (!displayName) {
     return (
@@ -97,28 +82,37 @@ export default function ClassroomGuestPage({ params }: { params: Promise<{ roomI
   const activeSlide = slides[activeIndex];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
-      <div className="absolute top-4 left-4 text-gray-500">
-        {displayName} | クラス: {roomId} | {activeIndex + 1} / {slides.length}
-      </div>
-
-      <h1 className="text-2xl font-bold mb-4 text-red-500 animate-pulse">
-        🔴 受講画面 (先生と同期中)
-      </h1>
-
-      <div className="max-w-5xl w-full bg-white p-10 rounded-3xl shadow-lg border border-gray-100 min-h-[500px]">
-        <div className="flex flex-col gap-6">
-          {activeSlide.blocks.map((block) => (
-            <div key={block.id} className="w-full">
-              <Block block={block} />
-            </div>
-          ))}
+    <ClassroomSyncProvider
+      myConnectionId={myConnectionId}
+      isHost={false}
+      roster={roster}
+      blockSync={blockSync}
+      blockStates={blockStates}
+      send={send}
+    >
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+        <div className="absolute top-4 left-4 text-gray-500">
+          {displayName} | クラス: {roomId} | {activeIndex + 1} / {slides.length}
         </div>
-      </div>
 
-      <p className="mt-8 text-gray-400 text-sm">
-        先生が画面を操作すると、自動的に切り替わります
-      </p>
-    </div>
+        <h1 className="text-2xl font-bold mb-4 text-red-500 animate-pulse">
+          🔴 受講画面 (先生と同期中)
+        </h1>
+
+        <div className="max-w-5xl w-full bg-white p-10 rounded-3xl shadow-lg border border-gray-100 min-h-[500px]">
+          <div className="flex flex-col gap-6">
+            {activeSlide.blocks.map((block) => (
+              <div key={block.id} className="w-full">
+                <Block block={block} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="mt-8 text-gray-400 text-sm">
+          先生が画面を操作すると、自動的に切り替わります
+        </p>
+      </div>
+    </ClassroomSyncProvider>
   );
 }

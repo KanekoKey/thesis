@@ -85,3 +85,50 @@ export async function sendToConnection(
   const messageData = new TextEncoder().encode(JSON.stringify(payload));
   await postOrCleanup(apigwClient, connectionId, messageData);
 }
+
+// roomId に紐づく全接続のConnectionsTableレコードを取得する(ページネーション対応)
+export async function queryRoomConnections(
+  docClient: DynamoDBDocumentClient,
+  connectionsTableName: string,
+  roomId: string
+): Promise<Record<string, unknown>[]> {
+  const items: Record<string, unknown>[] = [];
+  let lastEvaluatedKey: Record<string, unknown> | undefined = undefined;
+
+  do {
+    const queryRes: QueryCommandOutput = await docClient.send(new QueryCommand({
+      TableName: connectionsTableName,
+      IndexName: INDEX_NAME,
+      KeyConditionExpression: "roomId = :r",
+      ExpressionAttributeValues: { ":r": roomId },
+      ExclusiveStartKey: lastEvaluatedKey,
+    }));
+    items.push(...(queryRes.Items || []));
+    lastEvaluatedKey = queryRes.LastEvaluatedKey;
+  } while (lastEvaluatedKey);
+
+  return items;
+}
+
+// 参加者一覧(rosterUpdate)を部屋の全員に配信する。入退室のたびに呼ぶ。
+export async function broadcastRoster(
+  docClient: DynamoDBDocumentClient,
+  connectionsTableName: string,
+  apigwClient: ApiGatewayManagementApiClient,
+  roomId: string
+): Promise<void> {
+  const connections = await queryRoomConnections(docClient, connectionsTableName, roomId);
+  const participants = connections.map((c) => ({
+    connectionId: c.connectionId,
+    role: c.role ?? "guest",
+    displayName: c.displayName,
+  }));
+
+  await broadcastToRoom({
+    docClient,
+    connectionsTableName,
+    apigwClient,
+    roomId,
+    payload: { type: "rosterUpdate", participants },
+  });
+}

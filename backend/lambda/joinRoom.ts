@@ -1,7 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, UpdateCommand, GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyWebsocketEventV2 } from "aws-lambda";
-import { getManagementApiClient, sendToConnection } from "./lib/broadcast";
+import { getManagementApiClient, sendToConnection, broadcastRoster } from "./lib/broadcast";
 import { getActiveHostConnectionId } from "./lib/hostAuth";
 
 const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -65,8 +65,27 @@ export const handler = async (event: APIGatewayProxyWebsocketEventV2) => {
     }
   }
 
-  // クライアントへ、実際に確定した役割を通知する(hostTokenが無効でguestに降格した場合もここで分かる)
-  await sendToConnection(apigwClient, connectionId, { type: "joined", role });
+  // 途中参加/再接続でも今の状態が分かるよう、共有(shared)ブロックの現在値をスナップショットで渡す
+  const sessionRows = await docClient.send(new QueryCommand({
+    TableName: ROOM_SESSION_TABLE_NAME,
+    KeyConditionExpression: "roomId = :r",
+    ExpressionAttributeValues: { ":r": roomId },
+  }));
+  const blocks = (sessionRows.Items || [])
+    .filter((item) => item.sk !== "__room__")
+    .map((item) => ({
+      blockId: item.sk,
+      controllerRule: item.controllerRule,
+      controllerConnectionId: item.controllerConnectionId ?? null,
+      state: item.state,
+    }));
+
+  // クライアントへ、実際に確定した役割・自分のconnectionId・現在のブロック状態を通知する
+  // (hostTokenが無効でguestに降格した場合もここで分かる)
+  await sendToConnection(apigwClient, connectionId, { type: "joined", role, connectionId, blocks });
+
+  // 参加者一覧を部屋の全員に配信する
+  await broadcastRoster(docClient, CONNECTIONS_TABLE_NAME, apigwClient, roomId);
 
   return { statusCode: 200, body: "Joined room" };
 };

@@ -1,7 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, DeleteCommand, UpdateCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyWebsocketEventV2 } from "aws-lambda";
-import { getManagementApiClient, broadcastToRoom } from "./lib/broadcast";
+import { getManagementApiClient, broadcastToRoom, broadcastRoster } from "./lib/broadcast";
 import { getActiveHostConnectionId } from "./lib/hostAuth";
 
 const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -22,6 +22,8 @@ export const handler = async (event: APIGatewayProxyWebsocketEventV2) => {
   if (!roomId) {
     return { statusCode: 200, body: "Disconnected" };
   }
+
+  const apigwClient = getManagementApiClient(event);
 
   // hostが切断した場合は「正規host不在」の状態に戻す
   const activeHostConnectionId = await getActiveHostConnectionId(docClient, ROOM_SESSION_TABLE_NAME, roomId);
@@ -44,7 +46,6 @@ export const handler = async (event: APIGatewayProxyWebsocketEventV2) => {
   );
 
   if (controlledBlocks.length > 0) {
-    const apigwClient = getManagementApiClient(event);
     await Promise.all(controlledBlocks.map(async (item) => {
       await docClient.send(new UpdateCommand({
         TableName: ROOM_SESSION_TABLE_NAME,
@@ -61,6 +62,9 @@ export const handler = async (event: APIGatewayProxyWebsocketEventV2) => {
       });
     }));
   }
+
+  // 参加者一覧を残りの全員に配信する
+  await broadcastRoster(docClient, CONNECTIONS_TABLE_NAME, apigwClient, roomId);
 
   return { statusCode: 200, body: "Disconnected" };
 };
