@@ -377,16 +377,6 @@ export default function RollerCoasterBlock({
                                 }}
                                 className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                             />
-                            {isShared && isController && sync && !sync.isHost && (
-                                <div className="flex justify-end text-[11px]">
-                                    <button
-                                        onClick={() => sync.send('releaseControl', { blockId: id })}
-                                        className="text-blue-500 hover:underline"
-                                    >
-                                        操作を終える
-                                    </button>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>

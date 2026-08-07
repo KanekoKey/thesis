@@ -117,10 +117,6 @@ export class BackendStack extends cdk.Stack {
       entry: 'lambda/revokeControl.ts',
       environment: permissionLambdaEnv,
     });
-    const releaseControlHandler = new lambda.NodejsFunction(this, 'ReleaseControlHandler', {
-      entry: 'lambda/releaseControl.ts',
-      environment: permissionLambdaEnv,
-    });
     const resetBlockStateHandler = new lambda.NodejsFunction(this, 'ResetBlockStateHandler', {
       entry: 'lambda/resetBlockState.ts',
       environment: permissionLambdaEnv,
@@ -130,7 +126,6 @@ export class BackendStack extends cdk.Stack {
       blockStateUpdateHandler,
       assignControlHandler,
       revokeControlHandler,
-      releaseControlHandler,
       resetBlockStateHandler,
     ];
 
@@ -182,9 +177,6 @@ export class BackendStack extends cdk.Stack {
     });
     webSocketApi.addRoute('revokeControl', {
       integration: new WebSocketLambdaIntegration('RevokeControlInteg', revokeControlHandler),
-    });
-    webSocketApi.addRoute('releaseControl', {
-      integration: new WebSocketLambdaIntegration('ReleaseControlInteg', releaseControlHandler),
     });
     webSocketApi.addRoute('resetBlockState', {
       integration: new WebSocketLambdaIntegration('ResetBlockStateInteg', resetBlockStateHandler),

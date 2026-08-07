@@ -38,7 +38,7 @@ export type RoomItem = {
 // RoomSessionTable - 授業ごとの実行時状態（新規）
 // ============================================
 // Lambda: backend/lambda/setBlockPermission.ts, blockStateUpdate.ts,
-//         assignControl.ts, revokeControl.ts, releaseControl.ts, resetBlockState.ts
+//         assignControl.ts, revokeControl.ts, resetBlockState.ts
 // PK: roomId / SK: sk（値は blockId、または部屋全体の状態を表す予約値 "__room__"）
 
 export type RoomSessionBlockItem = {
