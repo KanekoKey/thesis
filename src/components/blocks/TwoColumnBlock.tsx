@@ -17,9 +17,10 @@ interface ColumnProps {
     containerId: string;
     blocks: BlockData[];
     editable: boolean;
+    interactive: boolean;
 }
 
-function Column({ containerId, blocks, editable }: ColumnProps) {
+function Column({ containerId, blocks, editable, interactive }: ColumnProps) {
     const { setNodeRef } = useDroppable({
         id: containerId,
         data: { type: 'container', containerId },
@@ -28,7 +29,7 @@ function Column({ containerId, blocks, editable }: ColumnProps) {
     const items = blocks.map((block) => (
         editable
             ? <SortableBlockItem key={block.id} block={block} />
-            : <Block key={block.id} block={block} />
+            : <Block key={block.id} block={block} interactive={interactive} />
     ));
     const emptyPlaceholder = blocks.length === 0 && (
         <div className="flex-1 min-h-[32px] rounded border border-dashed border-gray-200" />
@@ -61,9 +62,10 @@ interface Props {
     columns: [BlockData[], BlockData[]];
     ratio: number;
     editable?: boolean;
+    interactive?: boolean;
 }
 
-export default function TwoColumnBlock({ id, columns, ratio, editable = false }: Props) {
+export default function TwoColumnBlock({ id, columns, ratio, editable = false, interactive = true }: Props) {
     const updateBlockParams = useEditorStore((state) => state.updateBlockParams);
     const containerRef = useRef<HTMLDivElement>(null);
     const isDraggingRef = useRef(false);
@@ -93,7 +95,7 @@ export default function TwoColumnBlock({ id, columns, ratio, editable = false }:
     return (
         <div ref={containerRef} className="flex overflow-x-auto custom-scrollbar" onClick={(e) => e.stopPropagation()}>
             <div style={{ flexGrow: ratio, flexBasis: 0, minWidth: getColumnMinWidth(columns[0]) }}>
-                <Column containerId={`${id}:0`} blocks={columns[0]} editable={editable} />
+                <Column containerId={`${id}:0`} blocks={columns[0]} editable={editable} interactive={interactive} />
             </div>
 
             {editable ? (
@@ -110,7 +112,7 @@ export default function TwoColumnBlock({ id, columns, ratio, editable = false }:
             )}
 
             <div style={{ flexGrow: 1 - ratio, flexBasis: 0, minWidth: getColumnMinWidth(columns[1]) }}>
-                <Column containerId={`${id}:1`} blocks={columns[1]} editable={editable} />
+                <Column containerId={`${id}:1`} blocks={columns[1]} editable={editable} interactive={interactive} />
             </div>
         </div>
     );

@@ -31,7 +31,7 @@ export default function Block({ block, interactive = true, editable = false }: P
     case 'h4': return <H4Block {...block.parameters} />;
     case 'counter': return <CounterBlock {...block.parameters} />;
     case 'roller-coaster': return <RollerCoasterBlock id={block.id} permission={block.permission} interactive={interactive} {...block.parameters} />;
-    case 'two-column': return <TwoColumnBlock id={block.id} editable={editable} {...block.parameters} />;
+    case 'two-column': return <TwoColumnBlock id={block.id} editable={editable} interactive={interactive} {...block.parameters} />;
 
     default: return <ErrorBlock />;
   }
