@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef, use } from 'react';
-import Block from '@/components/blocks/Block';
 import { useDeck } from '@/hooks/useDeck';
+import HostHeader from '@/components/classroom/HostHeader';
+import ActiveSlideStage from '@/components/classroom/ActiveSlideStage';
+import NextSlidePreview from '@/components/classroom/NextSlidePreview';
+import SlideFilmstrip from '@/components/classroom/SlideFilmstrip';
 
 const WS_URL = 'wss://0ydmcdhzc8.execute-api.ap-northeast-1.amazonaws.com/prod/';
 
@@ -30,30 +33,35 @@ export default function ClassroomHostPage({ params }: { params: Promise<{ roomId
     };
   }, [roomId]);
 
-  // --- キーボード入力制御とWebSocket送信 ---
+  // --- スライド切り替えとWebSocket送信 ---
+  const goToSlide = (newIndex: number) => {
+    if (!slides || slides.length === 0) return;
+    const clampedIndex = Math.max(0, Math.min(slides.length - 1, newIndex));
+
+    if (clampedIndex !== activeIndex) {
+      setActiveIndex(clampedIndex);
+
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(
+          JSON.stringify({
+            action: 'changeBlock',
+            roomId: roomId,
+            activeIndex: clampedIndex,
+          })
+        );
+      }
+    }
+  };
+
+  // --- キーボード入力制御 ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!slides || slides.length === 0) return;
 
-      let newIndex = activeIndex;
       if (e.key === 'ArrowRight') {
-        newIndex = Math.min(slides.length - 1, activeIndex + 1);
+        goToSlide(activeIndex + 1);
       } else if (e.key === 'ArrowLeft') {
-        newIndex = Math.max(0, activeIndex - 1);
-      }
-
-      if (newIndex !== activeIndex) {
-        setActiveIndex(newIndex);
-
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          wsRef.current.send(
-            JSON.stringify({
-              action: 'changeBlock',
-              roomId: roomId,
-              activeIndex: newIndex,
-            })
-          );
-        }
+        goToSlide(activeIndex - 1);
       }
     };
 
@@ -78,24 +86,25 @@ export default function ClassroomHostPage({ params }: { params: Promise<{ roomId
   }
 
   const activeSlide = slides[activeIndex];
+  const nextSlide = slides[activeIndex + 1];
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
-      <div className="absolute top-4 left-4 text-gray-500">
-        クラス: {roomId} | スライド: {activeIndex + 1}/{slides.length}
-      </div>
-      <h1 className="text-2xl font-bold mb-4">教員画面 (操作側)</h1>
+    <div className="h-screen bg-gray-100 flex flex-col overflow-hidden">
+      <HostHeader
+        roomId={roomId}
+        activeIndex={activeIndex}
+        slideCount={slides.length}
+        onPrev={() => goToSlide(activeIndex - 1)}
+        onNext={() => goToSlide(activeIndex + 1)}
+      />
 
-      <div className="max-w-5xl w-full bg-white p-10 rounded-3xl shadow-lg border border-gray-100 min-h-[500px]">
-        <div className="flex flex-col gap-6">
-          {activeSlide.blocks.map((block) => (
-            <div key={block.id} className="w-full">
-              <Block block={block} />
-            </div>
-          ))}
-        </div>
+      {/* --- メイン: 現在のスライド + 次のスライドプレビュー --- */}
+      <div className="flex-1 flex gap-6 p-6 overflow-hidden">
+        <ActiveSlideStage slide={activeSlide} />
+        <NextSlidePreview slide={nextSlide} />
       </div>
 
-      <p className="mt-8 text-gray-400">キーボードの ← → キーでスライド切り替え</p>
+      <SlideFilmstrip slides={slides} activeIndex={activeIndex} onSelect={goToSlide} />
     </div>
   );
 }
