@@ -1,18 +1,66 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DeleteCommand, DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, DeleteCommand, UpdateCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyWebsocketEventV2 } from "aws-lambda";
+import { getManagementApiClient, broadcastToRoom } from "./lib/broadcast";
+import { getActiveHostConnectionId } from "./lib/hostAuth";
 
 const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-const TABLE_NAME = process.env.TABLE_NAME!;
+const CONNECTIONS_TABLE_NAME = process.env.TABLE_NAME!;
+const ROOM_SESSION_TABLE_NAME = process.env.ROOM_SESSION_TABLE_NAME!;
 
 export const handler = async (event: APIGatewayProxyWebsocketEventV2) => {
   const connectionId = event.requestContext.connectionId;
 
-  // 切断されたらDynamoDBから削除
-  await docClient.send(new DeleteCommand({
-    TableName: TABLE_NAME,
-    Key: { connectionId }
+  // 削除と同時に、切断前の roomId を取得する(削除後では roomId が分からなくなるため)
+  const deleted = await docClient.send(new DeleteCommand({
+    TableName: CONNECTIONS_TABLE_NAME,
+    Key: { connectionId },
+    ReturnValues: "ALL_OLD",
   }));
+  const roomId = deleted.Attributes?.roomId as string | undefined;
+
+  if (!roomId) {
+    return { statusCode: 200, body: "Disconnected" };
+  }
+
+  // hostが切断した場合は「正規host不在」の状態に戻す
+  const activeHostConnectionId = await getActiveHostConnectionId(docClient, ROOM_SESSION_TABLE_NAME, roomId);
+  if (activeHostConnectionId === connectionId) {
+    await docClient.send(new UpdateCommand({
+      TableName: ROOM_SESSION_TABLE_NAME,
+      Key: { roomId, sk: "__room__" },
+      UpdateExpression: "REMOVE activeHostConnectionId",
+    }));
+  }
+
+  // このconnectionIdが操作権を持ったまま切断したブロックがあれば、教員が気づかなくても自動的に解放する
+  const sessionRows = await docClient.send(new QueryCommand({
+    TableName: ROOM_SESSION_TABLE_NAME,
+    KeyConditionExpression: "roomId = :r",
+    ExpressionAttributeValues: { ":r": roomId },
+  }));
+  const controlledBlocks = (sessionRows.Items || []).filter(
+    (item) => item.controllerConnectionId === connectionId
+  );
+
+  if (controlledBlocks.length > 0) {
+    const apigwClient = getManagementApiClient(event);
+    await Promise.all(controlledBlocks.map(async (item) => {
+      await docClient.send(new UpdateCommand({
+        TableName: ROOM_SESSION_TABLE_NAME,
+        Key: { roomId, sk: item.sk },
+        UpdateExpression: "REMOVE controllerConnectionId SET updatedAt = :now",
+        ExpressionAttributeValues: { ":now": Date.now() },
+      }));
+      await broadcastToRoom({
+        docClient,
+        connectionsTableName: CONNECTIONS_TABLE_NAME,
+        apigwClient,
+        roomId,
+        payload: { type: "blockPermissionChanged", blockId: item.sk, controllerConnectionId: null },
+      });
+    }));
+  }
 
   return { statusCode: 200, body: "Disconnected" };
 };

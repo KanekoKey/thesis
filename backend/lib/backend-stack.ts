@@ -74,7 +74,7 @@ export class BackendStack extends cdk.Stack {
       entry: 'lambda/disconnect.ts',
       environment: {
         TABLE_NAME: connectionsTable.tableName,
-        // 次フェーズ(切断時の操作権自動解放)で使用。今回はまだ disconnect.ts 側で未使用
+        // host切断時のactiveHostConnectionIdクリア、controller切断時の操作権自動解放に使用
         ROOM_SESSION_TABLE_NAME: roomSessionTable.tableName,
       },
     });
@@ -83,9 +83,8 @@ export class BackendStack extends cdk.Stack {
       entry: 'lambda/joinRoom.ts',
       environment: {
         TABLE_NAME: connectionsTable.tableName,
-        // 次フェーズ(hostToken検証・テイクオーバー)で使用。今回はまだ joinRoom.ts 側で未使用
-        ROOMS_TABLE_NAME: roomsTable.tableName,
-        ROOM_SESSION_TABLE_NAME: roomSessionTable.tableName,
+        ROOMS_TABLE_NAME: roomsTable.tableName, // hostToken検証に使用
+        ROOM_SESSION_TABLE_NAME: roomSessionTable.tableName, // テイクオーバー処理に使用
       },
     });
 
@@ -194,10 +193,8 @@ export class BackendStack extends cdk.Stack {
 
     // Lambdaが他のクライアントにメッセージを送るための権限を付与
     webSocketApi.grantManageConnections(changeBlockHandler);
-    // 次フェーズでhostTakenOver通知を送るために使用。今回はまだjoinRoom.ts側で未使用
-    webSocketApi.grantManageConnections(joinRoomHandler);
-    // 次フェーズで切断時の変更通知を送るために使用。今回はまだdisconnect.ts側で未使用
-    webSocketApi.grantManageConnections(disconnectHandler);
+    webSocketApi.grantManageConnections(joinRoomHandler); // joined / hostTakenOver 通知に使用
+    webSocketApi.grantManageConnections(disconnectHandler); // controller自動解放の通知に使用
     permissionHandlers.forEach((fn) => webSocketApi.grantManageConnections(fn));
   }
 }
