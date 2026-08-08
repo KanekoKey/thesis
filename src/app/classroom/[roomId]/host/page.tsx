@@ -1,75 +1,75 @@
 'use client';
 
-import { useState, useEffect, useRef, use } from 'react';
+import { use, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useRoom } from '@/hooks/useRoom';
 import { useDeck } from '@/hooks/useDeck';
+import { useClassroomConnection } from '@/hooks/useClassroomConnection';
+import { ClassroomSyncProvider } from '@/contexts/ClassroomSyncContext';
 import HostHeader from '@/components/classroom/HostHeader';
 import ActiveSlideStage from '@/components/classroom/ActiveSlideStage';
 import NextSlidePreview from '@/components/classroom/NextSlidePreview';
 import SlideFilmstrip from '@/components/classroom/SlideFilmstrip';
-
-const WS_URL = 'wss://0ydmcdhzc8.execute-api.ap-northeast-1.amazonaws.com/prod/';
+import ParticipantRosterPanel from '@/components/classroom/ParticipantRosterPanel';
 
 export default function ClassroomHostPage({ params }: { params: Promise<{ roomId: string }> }) {
   const { roomId } = use(params);
+  const hostToken = useSearchParams().get('token');
 
-  // DynamoDBからデッキデータを取得
-  const { slides, isLoading, error } = useDeck(roomId);
+  // roomId -> deckId の解決(教材本体はdeckIdで取得する)
+  const { deckId, isLoading: isRoomLoading, error: roomError } = useRoom(roomId);
+  const { slides, isLoading: isDeckLoading, error: deckError } = useDeck(deckId ?? '');
 
+  const {
+    wsStatus, activeIndex: syncedIndex, myConnectionId, resolvedRole, isTakenOver, roster,
+    blockSync, blockStates, send,
+  } = useClassroomConnection({ roomId, role: 'host', hostToken, enabled: true });
+
+  const authError = resolvedRole !== null && resolvedRole !== 'host';
+
+  // 表示は即座にローカルで反映しつつ(操作感優先)、サーバ側の権威あるindexで追従補正する
+  // (再接続・テイクオーバー時など)
   const [activeIndex, setActiveIndex] = useState(0);
-  const wsRef = useRef<WebSocket | null>(null);
-
-  // --- WebSocket接続 ---
   useEffect(() => {
-    const ws = new WebSocket(WS_URL);
-
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ action: 'joinRoom', roomId }));
-    };
-
-    wsRef.current = ws;
-
-    return () => {
-      ws.close();
-    };
-  }, [roomId]);
+    setActiveIndex(syncedIndex);
+  }, [syncedIndex]);
 
   // --- スライド切り替えとWebSocket送信 ---
   const goToSlide = (newIndex: number) => {
-    if (!slides || slides.length === 0) return;
+    if (!slides || slides.length === 0 || isTakenOver) return;
     const clampedIndex = Math.max(0, Math.min(slides.length - 1, newIndex));
-
     if (clampedIndex !== activeIndex) {
       setActiveIndex(clampedIndex);
-
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(
-          JSON.stringify({
-            action: 'changeBlock',
-            roomId: roomId,
-            activeIndex: clampedIndex,
-          })
-        );
-      }
+      send('changeBlock', { activeIndex: clampedIndex });
     }
   };
 
   // --- キーボード入力制御 ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!slides || slides.length === 0) return;
-
+      if (!slides || slides.length === 0 || isTakenOver) return;
       if (e.key === 'ArrowRight') {
         goToSlide(activeIndex + 1);
       } else if (e.key === 'ArrowLeft') {
         goToSlide(activeIndex - 1);
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeIndex, roomId, slides]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex, slides, isTakenOver]);
 
-  if (isLoading) {
+  if (authError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-xl font-bold text-red-500">
+          この配信を管理する権限がありません(リンクが無効です)
+        </div>
+      </div>
+    );
+  }
+
+  if (isRoomLoading || isDeckLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-xl font-bold text-gray-500 animate-pulse">デッキを読み込み中...</div>
@@ -77,7 +77,7 @@ export default function ClassroomHostPage({ params }: { params: Promise<{ roomId
     );
   }
 
-  if (error || !slides || slides.length === 0) {
+  if (roomError || deckError || !slides || slides.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-xl font-bold text-red-500">デッキ読み込みエラー</div>
@@ -89,22 +89,43 @@ export default function ClassroomHostPage({ params }: { params: Promise<{ roomId
   const nextSlide = slides[activeIndex + 1];
 
   return (
-    <div className="h-screen bg-gray-100 flex flex-col overflow-hidden">
-      <HostHeader
-        roomId={roomId}
-        activeIndex={activeIndex}
-        slideCount={slides.length}
-        onPrev={() => goToSlide(activeIndex - 1)}
-        onNext={() => goToSlide(activeIndex + 1)}
-      />
+    <ClassroomSyncProvider
+      myConnectionId={myConnectionId}
+      isHost={true}
+      roster={roster}
+      blockSync={blockSync}
+      blockStates={blockStates}
+      send={send}
+    >
+      <div className="h-screen bg-gray-100 flex flex-col overflow-hidden">
+        {isTakenOver && (
+          <div className="shrink-0 bg-amber-500 text-white text-sm font-bold text-center py-2">
+            別のタブ・端末でホストとして再接続されました。この画面はもう操作できません。
+          </div>
+        )}
 
-      {/* --- メイン: 現在のスライド + 次のスライドプレビュー --- */}
-      <div className="flex-1 flex gap-6 p-6 overflow-hidden">
-        <ActiveSlideStage slide={activeSlide} />
-        <NextSlidePreview slide={nextSlide} />
+        <HostHeader
+          roomId={roomId}
+          activeIndex={activeIndex}
+          slideCount={slides.length}
+          onPrev={() => goToSlide(activeIndex - 1)}
+          onNext={() => goToSlide(activeIndex + 1)}
+          disabled={isTakenOver}
+          syncStatus={wsStatus}
+        />
+
+        <div className="flex-1 flex overflow-hidden">
+          {/* --- メイン: 現在のスライド + 次のスライドプレビュー --- */}
+          <div className="flex-1 flex gap-6 p-6 overflow-hidden">
+            <ActiveSlideStage slide={activeSlide} />
+            <NextSlidePreview slide={nextSlide} />
+          </div>
+
+          <ParticipantRosterPanel roster={roster} />
+        </div>
+
+        <SlideFilmstrip slides={slides} activeIndex={activeIndex} onSelect={goToSlide} />
       </div>
-
-      <SlideFilmstrip slides={slides} activeIndex={activeIndex} onSelect={goToSlide} />
-    </div>
+    </ClassroomSyncProvider>
   );
 }

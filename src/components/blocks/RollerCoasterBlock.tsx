@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import type { RollerCoasterBlockData, RollerCoasterLayout } from '@/types/block';
+import { useState, useEffect } from 'react';
+import type { RollerCoasterBlockData, RollerCoasterLayout, BlockPermission } from '@/types/block';
+import { useClassroomSync } from '@/contexts/ClassroomSyncContext';
+import BlockPermissionBadge, { type PermissionMode } from '@/components/classroom/BlockPermissionBadge';
 
 // これ未満の幅ではシミュレーション/数値パネルのレイアウトが崩れるため、
 // two-column内などで下回る場合は横スクロールさせる（TwoColumnBlockが参照）
@@ -22,8 +24,15 @@ export const defaultRollerCoasterParams: Required<RollerCoasterBlockData['parame
     initialVelocity: 0,
 };
 
+type RollerCoasterBlockProps = RollerCoasterBlockData['parameters'] & {
+    id: string;
+    permission?: BlockPermission;
+    interactive?: boolean;
+};
+
 // --- RollerCoasterBlock | コンポーネント ---
 export default function RollerCoasterBlock({
+    id,
     layout = defaultRollerCoasterParams.layout,
     trackShape = defaultRollerCoasterParams.trackShape,
     mass = defaultRollerCoasterParams.mass,
@@ -31,13 +40,46 @@ export default function RollerCoasterBlock({
     initialHeight = defaultRollerCoasterParams.initialHeight,
     peakHeight = defaultRollerCoasterParams.peakHeight,
     initialVelocity = defaultRollerCoasterParams.initialVelocity,
-}: RollerCoasterBlockData['parameters']) {
+    permission,
+    interactive = true,
+}: RollerCoasterBlockProps) {
     const isInvalidHeight = trackShape === 'loop' ? initialHeight < 0 : initialHeight <= 0;
     const isInvalidPeakHeight = trackShape === 'loop' && peakHeight <= 0;
 
+    // --- RollerCoasterBlock｜操作許可・同期 ---
+    // Providerの外(エディタのプレビュー等)ではsyncがnullになり、常にindividual(ローカル完結)として振る舞う
+    const sync = useClassroomSync();
+    const live = sync?.blockSync[id];
+    const effectiveSync = live?.sync ?? permission?.sync ?? 'individual';
+    const effectiveControllerRule = live?.controllerRule ?? permission?.controllerRule ?? 'teacher-only';
+    const controllerConnectionId = live?.controllerConnectionId ?? null;
+    const isShared = sync !== null && effectiveSync === 'shared';
+
+    const isController = isShared && (
+        effectiveControllerRule === 'teacher-only'
+            ? sync!.isHost
+            : controllerConnectionId === sync!.myConnectionId
+    );
+    const canOperate = !isShared || isController;
+
     // --- RollerCoasterBlock｜状態管理 ---
-    // コースターの現在位置 (0.0 = スタート, 1.0 = ゴール)
-    const [positionX, setPositionX] = useState(0);
+    // コースターの現在位置 (0.0 = スタート, 1.0 = ゴール)。
+    // 操作している本人は「ローカルで動かしているのと同じ」体感になるよう、常にローカルstateを真値として
+    // 即座に反映する(サーバへの送信・受信の往復を待たない)。非操作者だけサーバの同期値をそのまま見る。
+    const [localPositionX, setLocalPositionX] = useState(0);
+    const syncedPositionX = (sync?.blockStates[id]?.positionX as number | undefined) ?? 0;
+    const showsLocal = !isShared || canOperate;
+    const positionX = showsLocal ? localPositionX : syncedPositionX;
+
+    // 操作権を得た瞬間(individual→shared、非操作者→操作者になった時など)は、
+    // サーバの現在値からローカルstateを初期化しておく(いきなり0に戻って見えないように)
+    useEffect(() => {
+        if (showsLocal) {
+            setLocalPositionX(syncedPositionX);
+        }
+        // 操作権が変わったタイミングでだけ同期したいので、依存はshowsLocalのみに絞る
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showsLocal]);
 
     // --- RollerCoasterBlock｜入力値のバリデーション ---
     if (isInvalidHeight || isInvalidPeakHeight || mass <= 0 || gravity < 0 || initialVelocity < 0) {
@@ -180,8 +222,39 @@ export default function RollerCoasterBlock({
     // 文字サイズ等はcqw単位で自身の描画幅に応じて縮小するため、
     // ビューポート基準のブレークポイントではなく自身の描画幅を基準にするコンテナクエリ(@container)を使う
     // (縦/横の並び自体は幅による自動切り替えではなく、layoutプロパティで教員が明示的に指定する)
+    // classroom内(sync !== null)でのみ、動的ブロックであることが3色で分かるように枠線を変える。
+    // 個別ブロックの汎用ハイライトはしない(エディタ等sync === nullのときは従来通りの無地の枠)。
+    const stateBorderClass = sync === null
+        ? 'border-gray-100'
+        : !isShared
+            ? 'border-purple-300'  // 動的ブロックである印(individual)
+            : canOperate
+                ? 'border-emerald-400' // 操作可能
+                : 'border-rose-300';   // 操作不可
+
     return (
-        <div className="@container flex flex-col p-4 bg-white border-2 border-gray-100 rounded-2xl shadow-sm gap-4">
+        <div className={`@container relative flex flex-col p-4 bg-white border-2 ${stateBorderClass} rounded-2xl shadow-sm gap-4`}>
+
+            {interactive && sync && sync.isHost && (
+                <BlockPermissionBadge
+                    mode={
+                        effectiveSync === 'shared'
+                            ? { sync: 'shared', controllerRule: effectiveControllerRule }
+                            : { sync: 'individual' }
+                    }
+                    controllerConnectionId={controllerConnectionId}
+                    roster={sync.roster}
+                    onChangeMode={(mode: PermissionMode) => {
+                        sync.send('setBlockPermission', {
+                            blockId: id,
+                            sync: mode.sync,
+                            ...(mode.sync === 'shared' ? { controllerRule: mode.controllerRule } : {}),
+                        });
+                    }}
+                    onAssign={(connectionId) => sync.send('assignControl', { blockId: id, connectionId })}
+                    onRevoke={() => sync.send('revokeControl', { blockId: id })}
+                />
+            )}
 
             {/* メインレイアウト：シミュレーションと数値データの並び順はlayoutプロパティで切り替え */}
             <div className={`flex gap-4 ${layout === 'horizontal' ? 'flex-row' : 'flex-col'}`}>
@@ -290,9 +363,17 @@ export default function RollerCoasterBlock({
                                 max="1"
                                 step="0.001"
                                 value={positionX}
-                                onChange={(e) => {  // スライダーの値を更新する際、エネルギー不足になる位置を超えないように制限
-                                    const newP = parseFloat(e.target.value);
-                                    setPositionX(Math.min(newP, maxPosition));
+                                // disabled属性は使わない(ブラウザ標準のグレー表示がTailwindのクラス指定と無関係に
+                                // 付いてしまうため)。権限が無い場合はonChangeで無視するだけにし、見た目は変えない
+                                onChange={(e) => {
+                                    if (!canOperate) return;
+                                    // スライダーの値を更新する際、エネルギー不足になる位置を超えないように制限
+                                    const newP = Math.min(parseFloat(e.target.value), maxPosition);
+                                    setLocalPositionX(newP); // 自分の操作は常に即座にローカル反映
+                                    if (isShared) {
+                                        // 他の閲覧者に伝えるためにサーバへも送るが、自分の表示はローカルstateのまま変えない
+                                        sync!.send('blockStateUpdate', { blockId: id, state: { positionX: newP } });
+                                    }
                                 }}
                                 className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                             />

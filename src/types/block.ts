@@ -10,6 +10,13 @@ export type H4BlockData = { id: string; type: 'h4'; parameters: TextParameters; 
 
 export type RollerCoasterLayout = 'horizontal' | 'vertical';
 
+// 動的ブロックの操作許可・同期設定。未指定時は individual(各自ローカル操作・同期なし)として扱う。
+export type BlockPermission = {
+  sync: 'individual' | 'shared';
+  // 'shared' のときのみ意味を持つ。誰が操作者になれるかを決める
+  controllerRule?: 'teacher-only' | 'assigned';
+};
+
 export type RollerCoasterBlockData = {
   id: string;
   type: 'roller-coaster';
@@ -24,6 +31,7 @@ export type RollerCoasterBlockData = {
     peakHeight?: number;                // ループの高さ [m]
     initialVelocity?: number;           // スタートの速度 [m/s]
   };
+  permission?: BlockPermission;
 };
 
 export type CounterBlockData = {
@@ -34,6 +42,7 @@ export type CounterBlockData = {
     step: number;
     label: string;
   };
+  permission?: BlockPermission;
 }
 
 export type TwoColumnBlockData = {
