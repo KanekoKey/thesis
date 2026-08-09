@@ -49,6 +49,8 @@ interface EditorState {
     index: number
   ) => string;
   setSelectedBlockId: (id: string | null) => void;
+  // DBから読み込んだデッキの内容でストア全体を置き換える(エディタ初期表示用)
+  setSlides: (slides: SlideData[]) => void;
   updateBlockParams: (id: string, newParams: Partial<BlockData['parameters']>) => void;
   removeBlock: (id: string) => void;
   // 指定したブロックを、指定したコンテナ(トップレベル or 2列ブロックの列)の指定位置に移動する。
@@ -115,6 +117,13 @@ export const useEditorStore = create<EditorState>()(
     // --- 選択中ブロックの切り替え ---
     setSelectedBlockId: (id) => set((state) => {
       state.selectedBlockId = id;
+    }),
+
+    // --- デッキ読み込み(既存の編集内容を丸ごと置き換える) ---
+    setSlides: (slides) => set((state) => {
+      state.slides = slides.length > 0 ? slides : [{ id: 's1', blocks: [] }];
+      state.activeSlideId = state.slides[0].id;
+      state.selectedBlockId = null;
     }),
 
     // --- パラメータの部分更新 ---
