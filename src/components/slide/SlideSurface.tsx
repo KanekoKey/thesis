@@ -37,7 +37,10 @@ export default function SlideSurface({ blocks, interactive = true }: { blocks: B
     <SlideGrid className="bg-white">
       {blocks.map((block) => (
         <div key={block.id} style={gridPlacement(block.layout)} className="relative min-w-0 min-h-0 p-1">
-          <Block block={block} interactive={interactive} />
+          {/* エディタ(GridBlockItem)と同じ枠・余白にして、見た目を揃える */}
+          <div className="h-full w-full rounded-lg border-2 border-gray-300 bg-white p-2">
+            <Block block={block} interactive={interactive} />
+          </div>
         </div>
       ))}
     </SlideGrid>
