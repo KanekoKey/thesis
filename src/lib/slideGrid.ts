@@ -77,6 +77,27 @@ export function resolvePlacement(desired: BlockLayout, others: BlockLayout[]): B
   return best;
 }
 
+// 今の範囲を含んだまま target の大きさへ広げる。下/右へ広げるのを優先し、
+// 空きが無ければ上/左へずらして広げる(広げる量の合計が小さい順)。どこにも置けなければ null
+export function growPlacement(current: BlockLayout, target: Span, others: BlockLayout[]): BlockLayout | null {
+  const growCols = target.colSpan - current.colSpan;
+  const growRows = target.rowSpan - current.rowSpan;
+
+  const shifts: { dCols: number; dRows: number }[] = [];
+  for (let dRows = 0; dRows <= growRows; dRows++) {
+    for (let dCols = 0; dCols <= growCols; dCols++) {
+      shifts.push({ dCols, dRows });
+    }
+  }
+  shifts.sort((a, b) => a.dCols + a.dRows - (b.dCols + b.dRows) || a.dRows - b.dRows);
+
+  for (const { dCols, dRows } of shifts) {
+    const candidate = { ...target, col: current.col - dCols, row: current.row - dRows };
+    if (isPlacementFree(candidate, others)) return candidate;
+  }
+  return null;
+}
+
 // ポインタ位置(スライド論理座標のセル単位)を中心に据えたときの、ブロックの左上セルを求める
 export function centerOnCell(pointer: { x: number; y: number }, span: Span): BlockLayout {
   return clampToBounds({
