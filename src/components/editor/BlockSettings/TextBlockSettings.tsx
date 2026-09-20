@@ -1,6 +1,7 @@
 import { useEditorStore } from '@/stores/useEditorStore';
 import type { TextBlockData } from '@/types/block';
 import TextField from '../InputFields/TextField';
+import OverflowNotice from './OverflowNotice';
 
 interface Props {
     blockId: string;
@@ -18,6 +19,9 @@ export default function TextBlockSettings({ blockId, params }: Props) {
                 value={params.content}
                 onChange={(val) => updateBlockParams(blockId, { content: val })}
             />
+            <OverflowNotice blockId={blockId}>
+                文字数を減らしてください
+            </OverflowNotice>
         </div>
     );
 }

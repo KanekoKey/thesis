@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { useEditorStore } from '@/stores/useEditorStore';
 import { useFitScale } from '@/hooks/useFitScale';
 import { SlideGrid } from '@/components/slide/SlideSurface';
 import { getMinSpan } from '@/lib/blockSpans';
+import { contentFits, requiredSpan } from '@/lib/contentFit';
 import {
     CELL_SIZE,
     SLIDE_HEIGHT,
     SLIDE_WIDTH,
+    growPlacement,
     isPlacementFree,
     moveLayout,
     resizeLayout,
@@ -26,9 +28,16 @@ type Gesture = {
     startY: number;
     startLayout: BlockLayout;
     minSpan: { colSpan: number; rowSpan: number };
-    // 他のブロックと重ならなかった直近の候補位置。ポインタが空きの無い場所に入っても、ここで止まる
+    // 内容が収まるかの判定に使うブロック本体のDOMと、操作開始時点で既に収まっていたか
+    body: HTMLElement | null;
+    startFits: boolean;
+    // 他のブロックと重ならず、内容も収まった直近の候補位置。ポインタが空きの無い場所や小さすぎるサイズに入っても、ここで止まる
     lastValid: BlockLayout;
 };
+
+// 描画済みのブロック本体(内容の大きさを測る対象)を探す
+const findBlockBody = (area: HTMLElement | null, blockId: string) =>
+    area?.querySelector<HTMLElement>(`[data-block-id="${blockId}"] [data-block-body]`) ?? null;
 
 // セルの目安線。エディタのみで表示し、教材提示側には出さない
 const GRID_LINE_COLOR = 'rgba(59, 130, 246, 0.10)';
@@ -70,6 +79,7 @@ export default function SlideCanvas() {
         e.stopPropagation();
         setSelectedBlockId(blockId);
 
+        const body = findBlockBody(areaRef.current, blockId);
         gestureRef.current = {
             blockId,
             mode,
@@ -77,6 +87,8 @@ export default function SlideCanvas() {
             startY: e.clientY,
             startLayout: block.layout,
             minSpan: getMinSpan(block),
+            body,
+            startFits: body ? contentFits(body, block.layout) : true,
             lastValid: block.layout,
         };
         setPreview({ blockId, layout: block.layout });
@@ -103,7 +115,16 @@ export default function SlideCanvas() {
             const slide = state.slides.find(s => s.id === state.activeSlideId);
             const others = slide?.blocks.filter(b => b.id !== gesture.blockId).map(b => b.layout) ?? [];
 
-            if (isPlacementFree(candidate, others)) {
+            // 移動は大きさが変わらないので判定しない。リサイズは、内容が切れる大きさより小さくできない。
+            // ただし操作前から収まっていなかったブロック(旧データ等)は、広げる方向なら通す(でないと直しようが無くなる)
+            const start = gesture.startLayout;
+            const fitsContent =
+                gesture.mode === 'move' ||
+                !gesture.body ||
+                contentFits(gesture.body, candidate) ||
+                (!gesture.startFits && candidate.colSpan >= start.colSpan && candidate.rowSpan >= start.rowSpan);
+
+            if (fitsContent && isPlacementFree(candidate, others)) {
                 gesture.lastValid = candidate;
                 setPreview({ blockId: gesture.blockId, layout: candidate });
             }
@@ -131,6 +152,30 @@ export default function SlideCanvas() {
             window.removeEventListener('pointercancel', handleCancel);
         };
     }, [isGesturing, setBlockLayout]);
+
+    // 内容が後から増えた(文字の追加・レイアウトや数値の変更など)結果、ブロックが内容の収まる大きさを
+    // 下回ったら、空きのある方向へ自動で広げる。これでリサイズ時の「小さくできない」制限が常に成り立つ。
+    // 広げる空きが無い場合は何もせず、はみ出し警告(GridBlockItem)が残る。
+    // 1回の実行で広げるのは1ブロック。反映後の再描画でこの効果が再び走り、残りを順に処理する
+    const canvasReady = scale > 0;
+    useLayoutEffect(() => {
+        if (isGesturing || !canvasReady || !currentSlide) return;
+
+        for (const block of currentSlide.blocks) {
+            const body = findBlockBody(areaRef.current, block.id);
+            if (!body) continue;
+
+            const required = requiredSpan(block, body, block.layout);
+            if (required.colSpan === block.layout.colSpan && required.rowSpan === block.layout.rowSpan) continue;
+
+            const others = currentSlide.blocks.filter(b => b.id !== block.id).map(b => b.layout);
+            const grown = growPlacement(block.layout, required, others);
+            if (grown) {
+                setBlockLayout(block.id, grown);
+                return;
+            }
+        }
+    }, [currentSlide, isGesturing, canvasReady, setBlockLayout]);
 
     return (
         // ヘッダー(h-14)と下部のスライドナビゲーターの分を空けた領域に収める
@@ -166,7 +211,7 @@ export default function SlideCanvas() {
                     {currentSlide?.blocks.length === 0 && (
                         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                             <div className="rounded-lg border-2 border-dashed border-gray-300 px-10 py-6 text-gray-400">
-                                パレットから要素を追加してください
+                                ブロックが配置されていません
                             </div>
                         </div>
                     )}
