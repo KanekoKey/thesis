@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { SlideData } from '@/types/slide';
+import { migrateSlides } from '@/lib/migrateSlides';
 
 export function useDeck(deckId: string) {
   const [slides, setSlides] = useState<SlideData[]>([]);
@@ -15,7 +16,7 @@ export function useDeck(deckId: string) {
         if (!response.ok) throw new Error('データの取得に失敗しました');
 
         const data = await response.json();
-        setSlides(data.slides);
+        setSlides(migrateSlides(data.slides));
 
       } catch (err) {
         console.error(err);
