@@ -2,6 +2,7 @@ import { useEditorStore } from '@/stores/useEditorStore';
 import type { RollerCoasterBlockData } from '@/types/block';
 import SelectField from '../InputFields/SelectField';
 import NumberField from '../InputFields/NumberField';
+import OverflowNotice from './OverflowNotice';
 
 interface Props {
     blockId: string;
@@ -17,15 +18,21 @@ export default function RollerCoasterBlockSettings({ blockId, params }: Props) {
 
     return (
         <div className="flex flex-col gap-4">
-            <SelectField
-                label="レイアウト"
-                value={params.layout || 'horizontal'}
-                options={[
-                    { value: 'horizontal', label: '横並び' },
-                    { value: 'vertical', label: '縦並び' },
-                ]}
-                onChange={(val) => update({ layout: val })}
-            />
+            {/* ブロックの必要な大きさはレイアウトで決まる(横並び/縦並びで下限が違う)ので、警告はここに出す */}
+            <div className="flex flex-col gap-2">
+                <SelectField
+                    label="レイアウト"
+                    value={params.layout || 'horizontal'}
+                    options={[
+                        { value: 'horizontal', label: '横並び' },
+                        { value: 'vertical', label: '縦並び' },
+                    ]}
+                    onChange={(val) => update({ layout: val })}
+                />
+                <OverflowNotice blockId={blockId}>
+                    レイアウトを変更してください
+                </OverflowNotice>
+            </div>
 
             <SelectField
                 label="コース形状"

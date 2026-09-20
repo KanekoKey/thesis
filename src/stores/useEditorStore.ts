@@ -10,6 +10,9 @@ interface EditorState {
   slides: SlideData[];
   activeSlideId: string | null;
   selectedBlockId: string | null;
+  // 内容が枠に収まらず切れているブロックのID(一時的な表示状態。保存はしない)。
+  // 描画結果を測って判定するのは GridBlockItem で、ブロック設定パネルが警告文を出すためにここへ共有する
+  overflowBlockIds: Record<string, true>;
 
   // 操作 (Actions)
   // 新規ブロックを生成してアクティブなスライドのグリッドに配置し、生成したブロックのIDを返す。
@@ -27,6 +30,7 @@ interface EditorState {
   removeBlock: (id: string) => void;
   // ブロックの位置・大きさを変更する。スライドからはみ出す/他のブロックと重なる指定は無視する
   setBlockLayout: (id: string, layout: BlockLayout) => void;
+  setBlockOverflow: (id: string, overflowing: boolean) => void;
   addSlide: () => void;
   setActiveSlideId: (id: string) => void;
   deleteSlide: (id: string) => void;
@@ -44,6 +48,7 @@ export const useEditorStore = create<EditorState>()(
     ],
     activeSlideId: 's1',
     selectedBlockId: null,
+    overflowBlockIds: {},
 
     // --- ブロックの追加 ---
     addBlock: (type, initialParams, desired = { col: 0, row: 0 }) => {
@@ -119,6 +124,15 @@ export const useEditorStore = create<EditorState>()(
       if (!isPlacementFree(layout, others)) return;
 
       targetBlock.layout = layout;
+    }),
+
+    // --- はみ出し状態の記録(変化が無ければ何もしない) ---
+    setBlockOverflow: (id, overflowing) => set((state) => {
+      if (overflowing) {
+        state.overflowBlockIds[id] = true;
+      } else {
+        delete state.overflowBlockIds[id];
+      }
     }),
 
     // --- スライドの追加 ---
