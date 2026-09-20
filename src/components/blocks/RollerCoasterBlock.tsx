@@ -1,17 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { RollerCoasterBlockData, RollerCoasterLayout, BlockPermission } from '@/types/block';
+import type { RollerCoasterBlockData, BlockPermission } from '@/types/block';
 import { useClassroomSync } from '@/contexts/ClassroomSyncContext';
 import BlockPermissionBadge, { type PermissionMode } from '@/components/classroom/BlockPermissionBadge';
-
-// これ未満の幅ではシミュレーション/数値パネルのレイアウトが崩れるため、
-// two-column内などで下回る場合は横スクロールさせる（TwoColumnBlockが参照）
-// horizontal(横並び)はシミュレーションと数値データが横に並ぶ分、vertical(縦並び)より広い幅が必要
-export const ROLLER_COASTER_MIN_WIDTH: Record<RollerCoasterLayout, number> = {
-    horizontal: 500,
-    vertical:   300,
-};
 
 // --- RollerCoasterBlock｜型定義 ---
 export const defaultRollerCoasterParams: Required<RollerCoasterBlockData['parameters']> = {
@@ -84,7 +76,7 @@ export default function RollerCoasterBlock({
     // --- RollerCoasterBlock｜入力値のバリデーション ---
     if (isInvalidHeight || isInvalidPeakHeight || mass <= 0 || gravity < 0 || initialVelocity < 0) {
         return (
-            <div className="flex flex-col items-center justify-center p-8 bg-red-50 border-2 border-red-200 rounded-2xl shadow-sm gap-4 text-center w-full">
+            <div data-clip className="flex flex-col items-center justify-center p-8 bg-red-50 border-2 border-red-200 rounded-2xl shadow-sm gap-4 text-center w-full h-full overflow-hidden">
                 <span className="text-4xl">⚠️</span>
                 <h3 className="font-bold text-red-700 text-lg">コースを生成できません</h3>
                 <div className="text-sm text-red-600 text-left bg-white p-4 rounded-lg border border-red-100">
@@ -219,6 +211,8 @@ export default function RollerCoasterBlock({
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
     // --- RollerCoasterBlock｜UI ---
+    // ブロックは配置されたグリッドのセル(親)いっぱいに広がり、シミュレーション領域が余った高さを埋める。
+    // 内容がセルに収まらない場合は中身をクリップし、エディタ側ではみ出し警告を出す(data-clip)。
     // 文字サイズ等はcqw単位で自身の描画幅に応じて縮小するため、
     // ビューポート基準のブレークポイントではなく自身の描画幅を基準にするコンテナクエリ(@container)を使う
     // (縦/横の並び自体は幅による自動切り替えではなく、layoutプロパティで教員が明示的に指定する)
@@ -233,7 +227,7 @@ export default function RollerCoasterBlock({
                 : 'border-rose-300';   // 操作不可
 
     return (
-        <div className={`@container relative flex flex-col p-4 bg-white border-2 ${stateBorderClass} rounded-2xl shadow-sm gap-4`}>
+        <div className={`@container relative h-full flex flex-col p-4 bg-white border-2 ${stateBorderClass} rounded-2xl shadow-sm gap-4`}>
 
             {interactive && sync && sync.isHost && (
                 <BlockPermissionBadge
@@ -256,15 +250,16 @@ export default function RollerCoasterBlock({
                 />
             )}
 
-            {/* メインレイアウト：シミュレーションと数値データの並び順はlayoutプロパティで切り替え */}
-            <div className={`flex gap-4 ${layout === 'horizontal' ? 'flex-row' : 'flex-col'}`}>
+            {/* メインレイアウト：シミュレーションと数値データの並び順はlayoutプロパティで切り替え。
+                枠の中身だけをクリップする(枠の外にはみ出して出す権限バッジのポップオーバーは切らないため、枠自体はクリップしない) */}
+            <div data-clip className={`flex gap-4 flex-1 min-h-0 overflow-hidden ${layout === 'horizontal' ? 'flex-row' : 'flex-col'}`}>
 
                 {/* シミュレーションと操作パネル */}
-                <div className="flex-1 flex flex-col gap-3">
+                <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-3">
 
-                    {/* シミュレーションエリア */}
-                    <div className="bg-sky-50 rounded-xl p-3 @sm:p-4 border border-sky-100 w-full">
-                        <div className="relative w-full aspect-[2/1]">
+                    {/* シミュレーションエリア(操作パネルの残りの高さいっぱいに広がる) */}
+                    <div className="bg-sky-50 rounded-xl p-3 @sm:p-4 border border-sky-100 w-full flex-1 min-h-0">
+                        <div className="relative w-full h-full">
 
                             {/* 設定値 */}
                             <div className="absolute top-0 right-0 bg-white/70 backdrop-blur-sm border border-sky-100 text-gray-500 text-[clamp(7px,2.6cqw,11px)] px-2 py-1 rounded shadow-sm z-10 text-left pointer-events-none">
@@ -350,7 +345,7 @@ export default function RollerCoasterBlock({
                     </div>
 
                     {/* 操作パネル */}
-                    <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
+                    <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-200 shrink-0">
                         <div className="flex flex-col gap-2">
                             <div className="flex justify-between text-[clamp(8px,2.6cqw,12px)] font-bold text-gray-400">
                                 <span>START</span>

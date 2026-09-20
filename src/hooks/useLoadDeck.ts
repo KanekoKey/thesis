@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useEditorStore } from '@/stores/useEditorStore';
+import { migrateSlides } from '@/lib/migrateSlides';
 
 // エディタ初期表示用: DBのデッキ内容をuseEditorStoreへ読み込む
 export function useLoadDeck(deckId: string) {
@@ -20,7 +21,7 @@ export function useLoadDeck(deckId: string) {
         if (!response.ok) throw new Error('データの取得に失敗しました');
 
         const data = await response.json();
-        if (!cancelled) setSlides(data.slides);
+        if (!cancelled) setSlides(migrateSlides(data.slides));
 
       } catch (err) {
         console.error(err);

@@ -24,7 +24,7 @@ export default function CounterBlock({
 
   // --- CounterBlock｜UI ---
   return (
-    <div className="flex flex-col items-center justify-center p-8 bg-blue-50 border-2 border-blue-100 rounded-2xl shadow-sm">
+    <div data-clip className="h-full flex flex-col items-center justify-center p-8 bg-blue-50 border-2 border-blue-100 rounded-2xl shadow-sm overflow-hidden">
       <h3 className="text-xl font-bold text-blue-800 mb-6">{label}</h3>
 
       <div className="text-6xl font-mono font-bold text-gray-800 mb-8">

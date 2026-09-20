@@ -1,6 +1,7 @@
 'use client';
 
 import { useDraggable } from '@dnd-kit/core';
+import { useState } from 'react';
 import { Rnd } from 'react-rnd';
 import { useEditorStore } from '@/stores/useEditorStore';
 import type { BlockType } from '@/types/block';
@@ -34,11 +35,14 @@ function PaletteButton({ item, onClick }: { item: BlockItem; onClick: () => void
 
 export default function BlockSelector() {
     const addBlock = useEditorStore((state) => state.addBlock);
+    const [noSpace, setNoSpace] = useState(false);
 
-    // ブロック追加のハンドラー(クリック時)
+    // ブロック追加のハンドラー(クリック時)。スライドに空きが無いときは追加されないので、その旨を伝える
     const handleAddBlock = (type: BlockType) => {
         const defaultParams = BLOCK_DEFAULTS[type] || {};
-        addBlock(type, defaultParams);
+        const added = addBlock(type, defaultParams);
+        setNoSpace(added === null);
+        if (added === null) setTimeout(() => setNoSpace(false), 3000);
     };
 
     return (
@@ -59,6 +63,11 @@ export default function BlockSelector() {
 
                 {/* ブロック選択の中身 */}
                 <div className="p-3 flex flex-col gap-2 overflow-y-auto">
+                    {noSpace && (
+                        <div className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                            スライドに空きがありません
+                        </div>
+                    )}
                     <div className="text-xs font-bold text-gray-400 mb-1">静的ブロック</div>
                     {STATIC_ITEMS.map((item) => (
                         <PaletteButton key={item.type} item={item} onClick={() => handleAddBlock(item.type)} />

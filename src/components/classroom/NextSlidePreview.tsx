@@ -1,6 +1,7 @@
 'use client';
 
-import ScaledSlide, { SLIDE_H, SLIDE_W } from './ScaledSlide';
+import ScaledSlide from '@/components/slide/ScaledSlide';
+import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/lib/slideGrid';
 import type { SlideData } from '@/types/slide';
 
 const PREVIEW_WIDTH = 272;
@@ -16,7 +17,7 @@ export default function NextSlidePreview({ slide }: { slide: SlideData | undefin
       ) : (
         <div
           className="rounded-xl border-2 border-dashed border-gray-200 bg-white flex items-center justify-center text-gray-400 text-sm"
-          style={{ width: PREVIEW_WIDTH, height: (PREVIEW_WIDTH * SLIDE_H) / SLIDE_W }}
+          style={{ width: PREVIEW_WIDTH, height: (PREVIEW_WIDTH * SLIDE_HEIGHT) / SLIDE_WIDTH }}
         >
           これが最後のスライドです
         </div>

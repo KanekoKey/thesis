@@ -6,20 +6,17 @@ import {
     DragOverlay,
     KeyboardSensor,
     PointerSensor,
-    closestCenter,
-    pointerWithin,
     useSensor,
     useSensors,
 } from '@dnd-kit/core';
-import type { Active, CollisionDetection, DragEndEvent, DragOverEvent, DragStartEvent, Over } from '@dnd-kit/core';
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import type { DragEndEvent, DragMoveEvent, DragStartEvent } from '@dnd-kit/core';
 
 import { useEditorStore } from '@/stores/useEditorStore';
 import { BLOCK_DEFAULTS } from '@/components/blocks/defaults';
 import { STATIC_ITEMS, DYNAMIC_ITEMS } from '@/components/blocks/blockItems';
-import Block from '@/components/blocks/Block';
-import { findBlockById, findContainerList } from '@/lib/blockTree';
-import type { BlockData, BlockType } from '@/types/block';
+import { getDefaultSpan } from '@/lib/blockSpans';
+import { CELL_SIZE, SLIDE_WIDTH, centerOnCell, resolvePlacement } from '@/lib/slideGrid';
+import type { BlockLayout, BlockType } from '@/types/block';
 
 // BlockSelectorのボタンをドラッグ開始したときに active.data に載せる情報
 export type PaletteDragData = { source: 'palette'; blockType: BlockType };
@@ -28,223 +25,127 @@ function isPaletteDragData(data: unknown): data is PaletteDragData {
     return !!data && typeof data === 'object' && (data as PaletteDragData).source === 'palette';
 }
 
-type SortableItemData = { sortable: { containerId: string; index: number } };
-
-function isSortableItemData(data: unknown): data is SortableItemData {
-    return !!data && typeof data === 'object' && 'sortable' in (data as Record<string, unknown>);
-}
-
-type ContainerDropData = { type: 'container'; containerId: string };
-
-function isContainerDropData(data: unknown): data is ContainerDropData {
-    return !!data && typeof data === 'object' && (data as ContainerDropData).type === 'container';
-}
-
 const PALETTE_ITEMS_BY_TYPE = Object.fromEntries(
     [...STATIC_ITEMS, ...DYNAMIC_ITEMS].map((item) => [item.type, item])
 );
 
-// 挿入位置を示すインジケーターの見た目情報。実データは動かさず、これだけを描画する
-type Indicator =
-    | { kind: 'line'; top: number; left: number; width: number }
-    | { kind: 'empty'; top: number; left: number; width: number; height: number };
+// ドロップ先の候補を示すガイド。画面(client)座標の矩形で、置ける場合は青、スライドに空きが無ければ赤
+type DropGhost = { top: number; left: number; width: number; height: number; ok: boolean };
 
-// over(ドロップ先候補)への挿入位置(コンテナID+index)と、それを示すインジケーターを同時に求める。
-// sortableアイテムにホバーしている場合は、ドラッグ中の要素がその上半分/下半分どちらにあるかで
-// 「前に挿入」か「後ろに挿入」かを判定する
-function resolveDrag(
-    active: Active,
-    over: Over | null,
-    blocks: BlockData[]
-): { containerId: string; index: number; indicator: Indicator } | null {
-    if (!over || !over.rect) return null;
-    const data = over.data.current;
+type Drop = { placed: BlockLayout | null; ghost: DropGhost };
 
-    if (isContainerDropData(data)) {
-        const list = findContainerList(blocks, data.containerId) ?? [];
-        const r = over.rect;
-
-        if (list.length === 0) {
-            return {
-                containerId: data.containerId,
-                index: 0,
-                indicator: { kind: 'empty', top: r.top, left: r.left, width: r.width, height: r.height },
-            };
-        }
-
-        // 中身があるコンテナの余白(パディング等、どのブロックの矩形にも含まれない隙間)にホバーした場合。
-        // コンテナ全体をハイライトすると中身を全部置き換えるように見えて誤解を招くため、
-        // 末尾のブロックの直後に挿入される線インジケーターを表示する
-        const lastBlockId = list[list.length - 1].id;
-        const lastNode = document.querySelector<HTMLElement>(`[data-slide-canvas] [data-block-id="${lastBlockId}"]`);
-        const lastRect = lastNode?.getBoundingClientRect();
-
-        return {
-            containerId: data.containerId,
-            index: list.length,
-            indicator: lastRect
-                ? { kind: 'line', top: lastRect.bottom, left: lastRect.left, width: lastRect.width }
-                : { kind: 'empty', top: r.top, left: r.left, width: r.width, height: r.height },
-        };
+// ドラッグ中のポインタ位置(画面座標)。キーボード操作時はポインタが無いので、ドラッグ中の要素の中心で代用する
+function getPointer(event: DragMoveEvent | DragEndEvent): { x: number; y: number } | null {
+    const activator = event.activatorEvent;
+    if (activator && 'clientX' in activator) {
+        const pointerEvent = activator as PointerEvent;
+        return { x: pointerEvent.clientX + event.delta.x, y: pointerEvent.clientY + event.delta.y };
     }
-
-    if (isSortableItemData(data)) {
-        const overRect = over.rect;
-        const activeRect = active.rect.current.translated;
-        const isAfter = !!(
-            activeRect &&
-            activeRect.top + activeRect.height / 2 > overRect.top + overRect.height / 2
-        );
-        return {
-            containerId: data.sortable.containerId,
-            index: data.sortable.index + (isAfter ? 1 : 0),
-            indicator: {
-                kind: 'line',
-                top: isAfter ? overRect.top + overRect.height : overRect.top,
-                left: overRect.left,
-                width: overRect.width,
-            },
-        };
-    }
-
-    return null;
+    const rect = event.active.rect.current.translated;
+    return rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null;
 }
 
-// closestCenterはドラッグ中の要素自身の矩形の中心同士を比較するため、
-// ルート直下のフル幅ブロックのように「元の矩形が持ち先(列など)よりずっと大きい」場合、
-// 矩形の中心が実際のポインタ位置から大きくズレて誤ったコンテナに判定されてしまう。
-// そのため、まず実際のポインタ位置で当たっているコンテナを優先し(pointerWithin)、
-// どこにも当たっていない場合(キーボード操作時など)だけclosestCenterにフォールバックする
-const collisionDetection: CollisionDetection = (args) => {
-    const pointerCollisions = pointerWithin(args);
-    if (pointerCollisions.length > 0) {
-        return pointerCollisions;
-    }
-    return closestCenter(args);
-};
+// ポインタがスライド上にあれば、ブロックを置く位置(ポインタを中心にセルへスナップ。重なるなら最寄りの空き)を求める。
+// 表示するガイドと実際に置かれる位置が必ず一致するよう、ガイドとドロップで同じ関数を使う
+function resolveDrop(type: BlockType, pointer: { x: number; y: number } | null): Drop | null {
+    const canvas = document.querySelector<HTMLElement>('[data-slide-canvas]');
+    if (!canvas || !pointer) return null;
 
-function getCurrentBlocks(): BlockData[] {
+    const rect = canvas.getBoundingClientRect();
+    const inside = pointer.x >= rect.left && pointer.x <= rect.right && pointer.y >= rect.top && pointer.y <= rect.bottom;
+    if (!inside) return null;
+
+    // 画面の座標を、スライドの論理座標(1280×720基準)に戻す
+    const scale = rect.width / SLIDE_WIDTH;
+    const desired = centerOnCell(
+        { x: (pointer.x - rect.left) / scale, y: (pointer.y - rect.top) / scale },
+        getDefaultSpan(type)
+    );
+
     const state = useEditorStore.getState();
-    return state.slides.find((s) => s.id === state.activeSlideId)?.blocks ?? [];
-}
+    const others = state.slides.find((s) => s.id === state.activeSlideId)?.blocks.map((b) => b.layout) ?? [];
+    const placed = resolvePlacement(desired, others);
+    const shown = placed ?? desired;
+    const cell = CELL_SIZE * scale;
 
-// ドラッグ中に浮かせて表示するプレビュー(DragOverlayの中身)
-type DragPreview =
-    | { kind: 'block'; blockId: string; width: number; height: number }
-    | { kind: 'palette'; blockType: BlockType };
+    return {
+        placed,
+        ghost: {
+            top: rect.top + shown.row * cell,
+            left: rect.left + shown.col * cell,
+            width: shown.colSpan * cell,
+            height: shown.rowSpan * cell,
+            ok: placed !== null,
+        },
+    };
+}
 
 export default function EditorBlockDndContext({ children }: { children: React.ReactNode }) {
-    const slides = useEditorStore((state) => state.slides);
-    const activeSlideId = useEditorStore((state) => state.activeSlideId);
-    const moveBlock = useEditorStore((state) => state.moveBlock);
-    const spawnBlockAt = useEditorStore((state) => state.spawnBlockAt);
-    const setSelectedBlockId = useEditorStore((state) => state.setSelectedBlockId);
+    const addBlock = useEditorStore((state) => state.addBlock);
 
-    const blocks = slides.find((s) => s.id === activeSlideId)?.blocks ?? [];
-
-    const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
-    const [indicator, setIndicator] = useState<Indicator | null>(null);
+    const [draggingType, setDraggingType] = useState<BlockType | null>(null);
+    const [ghost, setGhost] = useState<DropGhost | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+        useSensor(KeyboardSensor),
     );
 
     const handleDragStart = (event: DragStartEvent) => {
-        const { active } = event;
-        const data = active.data.current;
-
-        if (isPaletteDragData(data)) {
-            setDragPreview({ kind: 'palette', blockType: data.blockType });
-            return;
-        }
-
-        const blockId = active.id as string;
-        // dnd-kitのactive.rect.current.initialはこの時点ではまだ計測されていないことがあるため、
-        // 実DOMのサイズを直接測ってドラッグ中に表示するプレビューのサイズを固定する。
-        // SlideNavigatorのミニプレビューも(2列ブロックの中身に限り)同じSortableBlockItemを再利用しており
-        // 同じdata-block-idを持つ縮小コピーが存在するため、実キャンバス内に限定して探す
-        const node = document.querySelector<HTMLElement>(`[data-slide-canvas] [data-block-id="${blockId}"]`);
-        const rect = node?.getBoundingClientRect();
-        setDragPreview({ kind: 'block', blockId, width: rect?.width ?? 0, height: rect?.height ?? 0 });
+        const data = event.active.data.current;
+        if (isPaletteDragData(data)) setDraggingType(data.blockType);
     };
 
-    // ドラッグ中は実データを一切動かさず、挿入位置のインジケーターだけを更新する
-    const handleDragOver = (event: DragOverEvent) => {
-        const resolved = resolveDrag(event.active, event.over, getCurrentBlocks());
-        setIndicator(resolved?.indicator ?? null);
+    // ドラッグ中は実データを一切動かさず、置かれる位置のガイドだけを更新する
+    const handleDragMove = (event: DragMoveEvent) => {
+        const data = event.active.data.current;
+        if (!isPaletteDragData(data)) return;
+        setGhost(resolveDrop(data.blockType, getPointer(event))?.ghost ?? null);
     };
 
-    // 実データの移動/新規挿入は、ドロップされた瞬間に一度だけ行う
+    // 実際の追加は、ドロップされた瞬間に一度だけ行う
     const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        const data = active.data.current;
-        const resolved = resolveDrag(active, over, getCurrentBlocks());
-
-        if (resolved) {
-            if (isPaletteDragData(data)) {
-                const defaultParams = BLOCK_DEFAULTS[data.blockType] ?? {};
-                const newBlockId = spawnBlockAt(data.blockType, defaultParams, resolved.containerId, resolved.index);
-                setSelectedBlockId(newBlockId);
-            } else {
-                moveBlock(active.id as string, resolved.containerId, resolved.index);
+        const data = event.active.data.current;
+        if (isPaletteDragData(data)) {
+            const drop = resolveDrop(data.blockType, getPointer(event));
+            if (drop?.placed) {
+                addBlock(data.blockType, BLOCK_DEFAULTS[data.blockType], { col: drop.placed.col, row: drop.placed.row });
             }
+            // スライド外へのドロップ・空きが無い場合は何もしない
         }
-        // 有効なドロップ先が無い場合は何もしない。実データはまだ動いていないので後始末は不要
-
-        setDragPreview(null);
-        setIndicator(null);
+        setDraggingType(null);
+        setGhost(null);
     };
 
     const handleDragCancel = () => {
-        setDragPreview(null);
-        setIndicator(null);
+        setDraggingType(null);
+        setGhost(null);
     };
 
-    const draggedBlock = dragPreview?.kind === 'block' ? findBlockById(blocks, dragPreview.blockId) : undefined;
-    const paletteItem = dragPreview?.kind === 'palette' ? PALETTE_ITEMS_BY_TYPE[dragPreview.blockType] : undefined;
+    const paletteItem = draggingType ? PALETTE_ITEMS_BY_TYPE[draggingType] : undefined;
 
     return (
         <DndContext
             id="editor-block-dnd-context"
             sensors={sensors}
-            collisionDetection={collisionDetection}
             onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
+            onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
         >
             {children}
 
-            {indicator?.kind === 'line' && (
+            {ghost && (
                 <div
-                    style={{ position: 'fixed', top: indicator.top - 1, left: indicator.left, width: indicator.width }}
-                    className="h-[3px] bg-blue-500 rounded-full pointer-events-none z-[60]"
-                />
-            )}
-            {indicator?.kind === 'empty' && (
-                <div
-                    style={{
-                        position: 'fixed',
-                        top: indicator.top,
-                        left: indicator.left,
-                        width: indicator.width,
-                        height: indicator.height,
-                    }}
-                    className="border-2 border-blue-400 bg-blue-50/40 rounded-lg pointer-events-none z-[60]"
+                    style={{ position: 'fixed', top: ghost.top, left: ghost.left, width: ghost.width, height: ghost.height }}
+                    className={`pointer-events-none z-[60] rounded-lg border-2 ${
+                        ghost.ok ? 'border-blue-400 bg-blue-50/40' : 'border-red-400 bg-red-50/40'
+                    }`}
                 />
             )}
 
-            <DragOverlay dropAnimation={{ duration: 200, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
-                {dragPreview?.kind === 'block' && draggedBlock ? (
-                    <div
-                        style={{ width: dragPreview.width, height: dragPreview.height }}
-                        className="pointer-events-none overflow-hidden rounded-lg border-2 border-blue-400 bg-white p-4 shadow-xl"
-                    >
-                        <Block block={draggedBlock} />
-                    </div>
-                ) : null}
-                {dragPreview?.kind === 'palette' && paletteItem ? (
+            <DragOverlay dropAnimation={null}>
+                {paletteItem ? (
                     <div className="pointer-events-none flex items-center gap-2 rounded-lg border-2 border-blue-400 bg-white px-3 py-2 text-sm text-gray-700 shadow-xl">
                         {paletteItem.icon && <paletteItem.icon className="w-4 h-4" />}
                         {paletteItem.label}

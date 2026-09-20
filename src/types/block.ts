@@ -1,12 +1,21 @@
+// スライドのグリッド(src/lib/slideGrid.ts)上での配置。col/row は左上セルの0始まりの位置、
+// colSpan/rowSpan は占有するセル数。全ブロック共通で、スライドを親とした格子状グリッドを使う。
+export type BlockLayout = {
+  col: number;
+  row: number;
+  colSpan: number;
+  rowSpan: number;
+};
+
 // --- テキスト系ブロック ---
 export type TextParameters = {
   content: string;
 };
-export type TextBlockData = { id: string; type: 'text'; parameters: TextParameters; };
-export type H1BlockData = { id: string; type: 'h1'; parameters: TextParameters; };
-export type H2BlockData = { id: string; type: 'h2'; parameters: TextParameters; };
-export type H3BlockData = { id: string; type: 'h3'; parameters: TextParameters; };
-export type H4BlockData = { id: string; type: 'h4'; parameters: TextParameters; };
+export type TextBlockData = { id: string; type: 'text'; layout: BlockLayout; parameters: TextParameters; };
+export type H1BlockData = { id: string; type: 'h1'; layout: BlockLayout; parameters: TextParameters; };
+export type H2BlockData = { id: string; type: 'h2'; layout: BlockLayout; parameters: TextParameters; };
+export type H3BlockData = { id: string; type: 'h3'; layout: BlockLayout; parameters: TextParameters; };
+export type H4BlockData = { id: string; type: 'h4'; layout: BlockLayout; parameters: TextParameters; };
 
 export type RollerCoasterLayout = 'horizontal' | 'vertical';
 
@@ -20,6 +29,7 @@ export type BlockPermission = {
 export type RollerCoasterBlockData = {
   id: string;
   type: 'roller-coaster';
+  layout: BlockLayout;
   parameters: {
     layout?: RollerCoasterLayout;
     // horizontal: シミュレーションと数値データを横並び, vertical: 縦並び
@@ -37,6 +47,7 @@ export type RollerCoasterBlockData = {
 export type CounterBlockData = {
   id: string;
   type: 'counter';
+  layout: BlockLayout;
   parameters: {
     initialCount: number;
     step: number;
@@ -44,15 +55,6 @@ export type CounterBlockData = {
   };
   permission?: BlockPermission;
 }
-
-export type TwoColumnBlockData = {
-  id: string;
-  type: 'two-column';
-  parameters: {
-    columns: [BlockData[], BlockData[]];
-    ratio: number; // 左列の幅の割合 (0〜1)。右列は 1 - ratio
-  };
-};
 
 // 全てのブロックの型を合体（ユニオン）
 export type BlockData =
@@ -62,8 +64,7 @@ export type BlockData =
   | H3BlockData
   | H4BlockData
   | RollerCoasterBlockData
-  | CounterBlockData
-  | TwoColumnBlockData;
+  | CounterBlockData;
 
 // ブロックの種類だけを抜き取るユーティリティ型
 export type BlockType = BlockData['type'];

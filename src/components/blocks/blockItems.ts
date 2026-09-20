@@ -1,4 +1,4 @@
-import { Type, Heading1, Heading2, Heading3, Heading4, RollerCoaster, Columns2 } from 'lucide-react';
+import { Type, Heading1, Heading2, Heading3, Heading4, RollerCoaster } from 'lucide-react';
 import type { BlockType } from '@/types/block';
 
 export type BlockItem = {
@@ -13,7 +13,6 @@ export const STATIC_ITEMS: BlockItem[] = [
     { type: 'h2', icon: Heading2, label: '見出し2' },
     { type: 'h3', icon: Heading3, label: '見出し3' },
     { type: 'h4', icon: Heading4, label: '見出し4' },
-    { type: 'two-column', icon: Columns2, label: '2列' },
 ];
 
 export const DYNAMIC_ITEMS: BlockItem[] = [
