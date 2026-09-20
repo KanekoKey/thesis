@@ -5,9 +5,10 @@ import type { SaveStatus } from '@/hooks/useSaveDeck';
 
 interface EditorFooterProps {
     saveStatus: SaveStatus;
+    errorMessage: string;
 }
 
-export default function EditorFooter({ saveStatus }: EditorFooterProps) {
+export default function EditorFooter({ saveStatus, errorMessage }: EditorFooterProps) {
     return (
         <div
             className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ${
@@ -24,8 +25,8 @@ export default function EditorFooter({ saveStatus }: EditorFooterProps) {
             )}
             {saveStatus === 'error' && (
                 <div className="flex items-center gap-2 bg-white text-red-600 border border-red-200 shadow-lg rounded-full pl-3 pr-4 py-2 text-sm font-bold">
-                    <AlertCircle className="w-4 h-4" />
-                    保存に失敗しました
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {errorMessage}
                 </div>
             )}
         </div>

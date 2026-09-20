@@ -15,7 +15,7 @@ import { useLoadDeck } from '@/hooks/useLoadDeck';
 export default function EditorPage({ params }: { params: Promise<{ deckId: string }> }) {
     const { deckId } = use(params);
     const { isLoading: isDeckLoading, error: deckError } = useLoadDeck(deckId);
-    const { saveStatus, lastSavedAt, handleSave } = useSaveDeck(deckId);
+    const { saveStatus, errorMessage, lastSavedAt, handleSave } = useSaveDeck(deckId);
     const { status: broadcastStatus, startBroadcast } = useStartBroadcast(deckId);
 
     if (isDeckLoading) {
@@ -54,7 +54,7 @@ export default function EditorPage({ params }: { params: Promise<{ deckId: strin
             </EditorBlockDndContext>
             <BlockSettings />
 
-            <EditorFooter saveStatus={saveStatus} />
+            <EditorFooter saveStatus={saveStatus} errorMessage={errorMessage} />
         </div>
     );
 }
