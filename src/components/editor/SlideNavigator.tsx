@@ -23,7 +23,10 @@ import { restrictToHorizontalAxis } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 
 import type { SlideData } from '@/types/slide';
-import Block from '@/components/blocks/Block';
+import ScaledSlide from '@/components/slide/ScaledSlide';
+
+// スライドサムネイルの幅(px)。下の w-24 と合わせる
+const THUMBNAIL_WIDTH = 96;
 
 // --- スライドサムネイル --- 
 interface SlideThumbnailProps {
@@ -50,19 +53,9 @@ const SlideThumbnail = React.forwardRef<HTMLDivElement, SlideThumbnailProps & Re
                         : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         } ${isOverlay ? 'border-blue-400' : 'cursor-grab active:cursor-grabbing'}`}
                 >
-                    <div
-                        className="absolute top-0 left-0 origin-top-left pointer-events-none bg-white flex flex-col gap-2 p-8"
-                        style={{
-                            width: '1024px', // 実際のエディタ画面と同じ幅を想定
-                            height: '576px', // 16:9の高さ (1024 * 9 / 16)
-                            transform: 'scale(0.09375)', // 96(w-24) / 1024 = 0.09375 で縮小！
-                        }}
-                    >
-                        {slide.blocks.map(block => (
-                            <div key={block.id} className="relative p-4">
-                                <Block block={block} />
-                            </div>
-                        ))}
+                    <div className="absolute top-0 left-0">
+                        {/* w-24(96px)のサムネイルへ、論理サイズのスライドを縮小して表示する */}
+                        <ScaledSlide slide={slide} width={THUMBNAIL_WIDTH} />
                     </div>
                 </div>
 

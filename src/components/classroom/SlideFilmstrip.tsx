@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import ScaledSlide from './ScaledSlide';
+import ScaledSlide from '@/components/slide/ScaledSlide';
 import type { SlideData } from '@/types/slide';
 
 const THUMB_WIDTH = 96;

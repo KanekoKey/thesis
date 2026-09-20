@@ -7,9 +7,7 @@ import { Trash2 } from 'lucide-react';
 import { useEditorStore } from '@/stores/useEditorStore';
 import TextBlockSettings from './TextBlockSettings';
 import RollerCoasterBlockSettings from './RollerCoasterBlockSettings';
-import TwoColumnBlockSettings from './TwoColumnBlockSettings';
 import type { BlockData, BlockType } from '@/types/block';
-import { findBlockById } from '@/lib/blockTree';
 import { STATIC_ITEMS, DYNAMIC_ITEMS } from '@/components/blocks/blockItems';
 
 // ブロックtypeからブロック名（ラベル）を引くためのマップ
@@ -42,7 +40,7 @@ export default function BlockSettings() {
     // 選択中のブロックデータを特定
     const currentSlide = slides.find(s => s.id === activeSlideId);
     const block = currentSlide && selectedBlockId
-        ? findBlockById(currentSlide.blocks, selectedBlockId)
+        ? currentSlide.blocks.find(b => b.id === selectedBlockId)
         : undefined;
 
     // typeに応じて適切な設定パネルに振り分ける
@@ -56,8 +54,6 @@ export default function BlockSettings() {
                 return <TextBlockSettings blockId={block.id} params={block.parameters} />;
             case 'roller-coaster':
                 return <RollerCoasterBlockSettings blockId={block.id} params={block.parameters} />;
-            case 'two-column':
-                return <TwoColumnBlockSettings blockId={block.id} params={block.parameters} />;
             default:
                 return <div className="text-sm text-gray-500 text-center py-4">設定項目がありません</div>;
         }
