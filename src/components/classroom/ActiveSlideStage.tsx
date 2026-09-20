@@ -1,20 +1,13 @@
 'use client';
 
-import Block from '@/components/blocks/Block';
+import FitSlide from '@/components/slide/FitSlide';
 import type { SlideData } from '@/types/slide';
 
+// 教員画面のメイン表示。領域いっぱいに16:9のスライドを収める(スクロール無し)
 export default function ActiveSlideStage({ slide }: { slide: SlideData }) {
   return (
-    <div className="flex-1 flex items-center justify-center min-w-0">
-      <div className="w-full h-full max-w-5xl bg-white p-10 rounded-3xl shadow-lg border border-gray-100 flex flex-col justify-center overflow-auto">
-        <div className="flex flex-col gap-6">
-          {slide.blocks.map((block) => (
-            <div key={block.id} className="w-full">
-              <Block block={block} />
-            </div>
-          ))}
-        </div>
-      </div>
+    <div className="flex-1 min-w-0 min-h-0">
+      <FitSlide slide={slide} />
     </div>
   );
 }

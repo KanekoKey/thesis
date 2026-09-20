@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import Block from '@/components/blocks/Block';
+import FitSlide from '@/components/slide/FitSlide';
 import { useRoom } from '@/hooks/useRoom';
 import { useDeck } from '@/hooks/useDeck';
 import { useClassroomConnection } from '@/hooks/useClassroomConnection';
@@ -112,26 +112,18 @@ export default function ClassroomGuestPage({ params }: { params: Promise<{ roomI
       blockStates={blockStates}
       send={send}
     >
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
-        <div className="absolute top-4 left-4 text-gray-500">
-          {displayName} | クラス: {roomId} | {activeIndex + 1} / {slides.length}
+      <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+        <div className="shrink-0 flex items-center justify-between px-4 py-2 text-sm text-gray-500">
+          <span>{displayName} | クラス: {roomId} | {activeIndex + 1} / {slides.length}</span>
+          <span className="font-bold text-red-500 animate-pulse">🔴 受講画面 (先生と同期中)</span>
         </div>
 
-        <h1 className="text-2xl font-bold mb-4 text-red-500 animate-pulse">
-          🔴 受講画面 (先生と同期中)
-        </h1>
-
-        <div className="max-w-5xl w-full bg-white p-10 rounded-3xl shadow-lg border border-gray-100 min-h-[500px]">
-          <div className="flex flex-col gap-6">
-            {activeSlide.blocks.map((block) => (
-              <div key={block.id} className="w-full">
-                <Block block={block} />
-              </div>
-            ))}
-          </div>
+        {/* スライドは残りの領域いっぱいに16:9で収める(スクロール無し) */}
+        <div className="flex-1 min-h-0 px-4">
+          <FitSlide slide={activeSlide} />
         </div>
 
-        <p className="mt-8 text-gray-400 text-sm">
+        <p className="shrink-0 py-2 text-center text-gray-400 text-xs">
           先生が画面を操作すると、自動的に切り替わります
         </p>
       </div>
