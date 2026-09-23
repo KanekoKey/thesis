@@ -1,0 +1,58 @@
+name: Bump version
+
+# mainにマージされた後にバージョンを上げると、そのマージのpushと
+# バージョンを上げるためのpushの2回、Amplifyのビルドが走ってしまう。
+# そのため、マージされる前(PRの段階)でバージョンを上げてPRブランチに
+# コミットしておき、マージ時のpush1回だけで正しいバージョンが
+# mainに反映されるようにしている。
+#
+# 同じPRに何度push(synchronize)しても、既にPRブランチのバージョンが
+# main側より進んでいれば再度バンプしない(冪等)。
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check whether a bump is needed
+        id: check
+        run: |
+          git fetch origin main
+          MAIN_VERSION=$(git show origin/main:package.json | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")
+          PR_VERSION=$(node -p "require('./package.json').version")
+          if [ "$MAIN_VERSION" = "$PR_VERSION" ]; then
+            echo "bump=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "bump=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump patch version
+        if: steps.check.outputs.bump == 'true'
+        run: npm version patch --no-git-tag-version
+
+      - name: Commit and push to the PR branch
+        if: steps.check.outputs.bump == 'true'
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to v${VERSION}"
+          git push origin HEAD:${{ github.head_ref }}
