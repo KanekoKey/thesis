@@ -97,7 +97,13 @@ export default function Home() {
           </div>
         </div>
 
-
+        {/* バージョン情報（本番反映確認用。hoverでコミットSHAも確認可能） */}
+        <p
+          className="text-xs text-zinc-400 dark:text-zinc-600 font-mono"
+          title={`commit: ${process.env.NEXT_PUBLIC_COMMIT_SHA ?? "unknown"} (${process.env.NEXT_PUBLIC_BRANCH ?? "unknown"})`}
+        >
+          v{process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}
+        </p>
 
       </main>
     </div>
