@@ -6,7 +6,6 @@ import H2Block from './H2Block';
 import H3Block from './H3Block';
 import H4Block from './H4Block';
 import RollerCoasterBlock from './RollerCoasterBlock';
-import CounterBlock from './CounterBlock';
 import ErrorBlock from './ErrorBlock';
 
 interface Props {
@@ -30,7 +29,6 @@ export default function Block({ block, interactive = true }: Props) {
     case 'h2': return <Clipped><H2Block {...block.parameters} /></Clipped>;
     case 'h3': return <Clipped><H3Block {...block.parameters} /></Clipped>;
     case 'h4': return <Clipped><H4Block {...block.parameters} /></Clipped>;
-    case 'counter': return <CounterBlock {...block.parameters} />;
     case 'roller-coaster': return <RollerCoasterBlock id={block.id} permission={block.permission} interactive={interactive} {...block.parameters} />;
 
     default: return <ErrorBlock />;

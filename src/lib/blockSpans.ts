@@ -9,7 +9,6 @@ const DEFAULT_SPANS: Record<BlockType, Span> = {
   'h3': { colSpan: 20, rowSpan: 2 },
   'h4': { colSpan: 16, rowSpan: 1 },
   'text': { colSpan: 20, rowSpan: 3 },
-  'counter': { colSpan: 12, rowSpan: 7 },
   'roller-coaster': { colSpan: 20, rowSpan: 12 },
 };
 

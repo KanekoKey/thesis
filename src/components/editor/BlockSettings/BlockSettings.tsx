@@ -7,7 +7,6 @@ import { Trash2 } from 'lucide-react';
 import { useEditorStore } from '@/stores/useEditorStore';
 import TextBlockSettings from './TextBlockSettings';
 import RollerCoasterBlockSettings from './RollerCoasterBlockSettings';
-import OverflowNotice from './OverflowNotice';
 import type { BlockData, BlockType } from '@/types/block';
 import { STATIC_ITEMS, DYNAMIC_ITEMS } from '@/components/blocks/blockItems';
 
@@ -55,14 +54,6 @@ export default function BlockSettings() {
                 return <TextBlockSettings blockId={block.id} params={block.parameters} />;
             case 'roller-coaster':
                 return <RollerCoasterBlockSettings blockId={block.id} params={block.parameters} />;
-            default:
-                // 設定項目が無いブロック(カウンター)は、項目の代わりにこの下へ警告を出す
-                return (
-                    <div className="flex flex-col gap-2">
-                        <div className="text-sm text-gray-500 text-center py-4">設定項目がありません</div>
-                        <OverflowNotice blockId={block.id}>ブロックに収まりません。ブロックを大きくしてください。</OverflowNotice>
-                    </div>
-                );
         }
     };
 

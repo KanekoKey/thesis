@@ -44,18 +44,6 @@ export type RollerCoasterBlockData = {
   permission?: BlockPermission;
 };
 
-export type CounterBlockData = {
-  id: string;
-  type: 'counter';
-  layout: BlockLayout;
-  parameters: {
-    initialCount: number;
-    step: number;
-    label: string;
-  };
-  permission?: BlockPermission;
-}
-
 // 全てのブロックの型を合体（ユニオン）
 export type BlockData =
   | TextBlockData
@@ -63,8 +51,7 @@ export type BlockData =
   | H2BlockData
   | H3BlockData
   | H4BlockData
-  | RollerCoasterBlockData
-  | CounterBlockData;
+  | RollerCoasterBlockData;
 
 // ブロックの種類だけを抜き取るユーティリティ型
 export type BlockType = BlockData['type'];
